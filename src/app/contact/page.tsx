@@ -1,3 +1,3 @@
-﻿'use client';
-import { Contact } from '../../pages/Contact';
+'use client';
+import { Contact } from '../../views/Contact';
 export default Contact;

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React from 'react';
 import { ArrowRight, Sparkles, Activity } from 'lucide-react';
@@ -14,7 +14,7 @@ export const HeroSection = () => {
   const parallaxRef = useMouseParallax(3);
 
   return (
-    <section className="relative min-h-[100vh] flex flex-col items-center justify-center pt-28 md:pt-32 pb-16 md:pb-20 overflow-hidden bg-white" ref={ref}>
+    <section className="relative min-h-[100vh] flex flex-col items-center justify-center pt-28 md:pt-32 pb-16 md:pb-20 overflow-hidden bg-white" ref={ref} suppressHydrationWarning>
       
       {/* Ultra-Subtle Background Grid & Orbs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">

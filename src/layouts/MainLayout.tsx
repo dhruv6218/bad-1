@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React from 'react';
 import Link from 'next/link';
@@ -7,7 +7,7 @@ import { ScrollProgress } from '../components/ui/ScrollProgress';
 
 export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
-    <div className="relative bg-white text-gray-900 min-h-screen font-sans selection:bg-brand-blue selection:text-white">
+    <div className="relative bg-white text-gray-900 min-h-screen font-sans selection:bg-brand-blue selection:text-white" suppressHydrationWarning>
       <ScrollProgress />
       <div className="bg-noise"></div>
       

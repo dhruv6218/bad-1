@@ -1,3 +1,3 @@
-﻿'use client';
-import { RefundPolicy } from '../../pages/legal/RefundPolicy';
+'use client';
+import { RefundPolicy } from '../../views/legal/RefundPolicy';
 export default RefundPolicy;

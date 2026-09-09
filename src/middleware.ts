@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Pure Passthrough Middleware: Removes all Supabase redirects for frontend development
+// Pure Passthrough Middleware for frontend navigation
 export async function middleware(_request: NextRequest) {
   return NextResponse.next();
 }

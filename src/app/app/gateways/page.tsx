@@ -1,3 +1,3 @@
-﻿'use client';
-import { Gateways } from '../../../pages/app/Gateways';
+'use client';
+import { Gateways } from '../../../views/app/Gateways';
 export default Gateways;

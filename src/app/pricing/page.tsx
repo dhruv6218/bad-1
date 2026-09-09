@@ -1,3 +1,3 @@
-﻿'use client';
-import { Pricing } from '../../pages/Pricing';
+'use client';
+import { Pricing } from '../../views/Pricing';
 export default Pricing;

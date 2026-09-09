@@ -1,3 +1,3 @@
-﻿'use client';
-import { PrivacyPolicy } from '../../pages/legal/PrivacyPolicy';
+'use client';
+import { PrivacyPolicy } from '../../views/legal/PrivacyPolicy';
 export default PrivacyPolicy;

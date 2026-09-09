@@ -1,3 +1,3 @@
-﻿'use client';
-import { Analytics } from '../../../pages/app/Analytics';
+'use client';
+import { Analytics } from '../../../views/app/Analytics';
 export default Analytics;

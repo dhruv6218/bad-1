@@ -1,3 +1,3 @@
-﻿'use client';
-import { Settings } from '../../../pages/app/Settings';
+'use client';
+import { Settings } from '../../../views/app/Settings';
 export default Settings;

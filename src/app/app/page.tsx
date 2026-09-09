@@ -1,3 +1,3 @@
-﻿'use client';
-import { Dashboard } from '../../pages/app/Dashboard';
+'use client';
+import { Dashboard } from '../../views/app/Dashboard';
 export default Dashboard;

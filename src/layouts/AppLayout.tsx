@@ -102,7 +102,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, title, subtitle,
   const wsInitials = wsName.substring(0, 2).toUpperCase();
 
   return (
-    <div className="min-h-screen bg-gray-50 flex font-sans selection:bg-brand-blue selection:text-white overflow-hidden">
+    <div className="min-h-screen bg-gray-50 flex font-sans selection:bg-brand-blue selection:text-white overflow-hidden" suppressHydrationWarning>
       
       {isMobileMenuOpen && (
         <div 

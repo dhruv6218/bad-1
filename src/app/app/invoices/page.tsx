@@ -1,3 +1,3 @@
-﻿'use client';
-import { Invoices } from '../../../pages/app/Invoices';
+'use client';
+import { Invoices } from '../../../views/app/Invoices';
 export default Invoices;

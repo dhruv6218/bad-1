@@ -1,3 +1,3 @@
-﻿'use client';
-import { ToneStudio } from '../../../pages/app/ToneStudio';
+'use client';
+import { ToneStudio } from '../../../views/app/ToneStudio';
 export default ToneStudio;

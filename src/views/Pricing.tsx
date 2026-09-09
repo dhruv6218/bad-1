@@ -124,17 +124,30 @@ export const Pricing = () => {
 
           {/* Billing Toggle */}
           <div className={`flex items-center justify-center gap-4 transition-all duration-700 delay-200 ${headerVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
-            <span className={`text-sm font-bold ${!isAnnual ? 'text-gray-900' : 'text-gray-500'}`}>Monthly</span>
             <button 
+              type="button"
+              onClick={() => setIsAnnual(false)}
+              className={`text-sm font-bold transition-colors cursor-pointer ${!isAnnual ? 'text-gray-900 font-extrabold' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Monthly
+            </button>
+
+            <button 
+              type="button"
               onClick={() => setIsAnnual(!isAnnual)}
-              className="w-14 h-7 bg-brand-blue rounded-full relative transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-blue/30"
+              className={`w-14 h-7 rounded-full p-1 relative transition-colors duration-300 cursor-pointer focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-blue/30 shadow-inner ${isAnnual ? 'bg-brand-blue' : 'bg-gray-300'}`}
               aria-label="Toggle annual billing"
             >
-              <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-transform duration-300 shadow-sm ${isAnnual ? 'translate-x-8' : 'translate-x-1'}`} />
+              <div className={`w-5 h-5 bg-white rounded-full transition-transform duration-300 shadow-md ${isAnnual ? 'translate-x-7' : 'translate-x-0'}`} />
             </button>
-            <span className={`text-sm font-bold flex items-center gap-2 ${isAnnual ? 'text-gray-900' : 'text-gray-500'}`}>
-              Annually <span className="bg-green-100 text-green-700 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">Save ~17%</span>
-            </span>
+
+            <button
+              type="button"
+              onClick={() => setIsAnnual(true)}
+              className={`text-sm font-bold flex items-center gap-2 transition-colors cursor-pointer ${isAnnual ? 'text-gray-900 font-extrabold' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Annually <span className="bg-green-100 text-green-700 text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">Save ~17%</span>
+            </button>
           </div>
         </div>
       </div>

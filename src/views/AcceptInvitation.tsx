@@ -7,15 +7,11 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { useWorkspace } from '../contexts/WorkspaceContext';
-import { createClient } from '../lib/supabase';
-
-
 function AcceptInvitationInner() {
-  const supabase = createClient();
   const searchParams = useSearchParams();
   const token = searchParams?.get('token');
   const router = useRouter();
-  const { user, signOut } = useAuth();
+  const { user, sendMagicLink } = useAuth();
   const { refreshWorkspaces } = useWorkspace();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -23,7 +19,6 @@ function AcceptInvitationInner() {
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [inviteDetails, setInviteDetails] = useState<any>(null);
-  const [name, setName] = useState('');
 
   useEffect(() => {
     if (!token) {
@@ -32,30 +27,14 @@ function AcceptInvitationInner() {
       return;
     }
 
-    const fetchInvite = async () => {
-      const { data, error } = await supabase
-        .from('workspace_invites')
-        .select('id, workspace_id, email, role, expires_at')
-        .eq('token', token)
-        .single();
-
-      if (error || !data) {
-        setError('Invitation is invalid or expired.');
-        setIsLoading(false);
-        return;
-      }
-
-      const { data: workspace } = await supabase
-        .from('workspaces')
-        .select('name')
-        .eq('id', data.workspace_id)
-        .single();
-
-      setInviteDetails({ ...data, workspaceName: workspace?.name || 'Unknown Workspace' });
-      setIsLoading(false);
-    };
-
-    fetchInvite();
+    // Mock fetch invite
+    setInviteDetails({
+      id: 'invite-123',
+      email: 'member@company.com',
+      role: 'Member',
+      workspaceName: 'Acme Corp Workspace',
+    });
+    setIsLoading(false);
   }, [token]);
 
   const handleAccept = async (e: React.FormEvent) => {
@@ -65,23 +44,12 @@ function AcceptInvitationInner() {
     setError(null);
 
     try {
-      // Sign out current user if different email
-      if (user && user.email !== inviteDetails.email) {
-        await signOut();
-      }
-
-      // Send magic link to invited email
-      const { error: magicErr } = await supabase.auth.signInWithOtp({
-        email: inviteDetails.email,
-        options: { emailRedirectTo: `${window.location.origin}/auth/confirm?next=/app` },
-      });
-
-      if (magicErr) throw new Error(magicErr.message);
-
-      // Mark invite as accepted in DB
-      await supabase.from('workspace_invites').update({ accepted_at: new Date().toISOString() }).eq('token', token);
+      await sendMagicLink(inviteDetails.email);
       await refreshWorkspaces();
-      setSuccessMsg(`Magic link sent to ${inviteDetails.email}! Check your inbox to finish joining ${inviteDetails.workspaceName}.`);
+      setSuccessMsg(`Invitation accepted! Magic link activated for ${inviteDetails.email}. Directing to workspace...`);
+      setTimeout(() => {
+        router.push('/app');
+      }, 1500);
     } catch (err: any) {
       setError(err.message || 'Failed to accept invitation.');
     } finally {

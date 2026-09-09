@@ -310,7 +310,7 @@ export const AdminDashboard: React.FC = () => {
                       { label: 'OpenAI API (Tone Cloning + Drafts)', cost: '$18.42', trend: '+5%' },
                       { label: 'Resend (Transactional Email)', cost: '$3.20', trend: '-2%' },
                       { label: 'Vercel (Edge Functions + Cron)', cost: '$9.00', trend: '0%' },
-                      { label: 'Supabase (Database + Auth)', cost: '$25.00', trend: '0%' },
+                      { label: 'Cloud Infrastructure & Database', cost: '$25.00', trend: '0%' },
                     ].map((item, i) => (
                       <div key={i} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
                         <span className="text-sm text-gray-600 font-medium">{item.label}</span>
@@ -351,7 +351,7 @@ export const AdminDashboard: React.FC = () => {
                       </div>
                       <div className="p-4 bg-gray-50">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-bold text-orange-500">Supabase Auth Timeout</span>
+                          <span className="text-xs font-bold text-orange-500">Auth Token Timeout</span>
                           <span className="text-xs text-gray-400">Yesterday</span>
                         </div>
                         <div className="text-sm text-gray-600 font-mono">Connection reset by peer during token refresh.</div>
