@@ -6,3 +6,7 @@ tsconfig.tsbuildinfo
 .env.*
 *.local
 yarn.lock
+.replit
+replit.md
+AGENTS.md
+CLAUDE.md

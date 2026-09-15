@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 // Pure Passthrough Middleware for frontend navigation
-export async function middleware(_request: NextRequest) {
+export async function proxy(_request: NextRequest) {
   return NextResponse.next();
 }
 
