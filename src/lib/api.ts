@@ -252,127 +252,91 @@ export const api = {
     },
   },
 
-  // ─── Accounts ──────────────────────────────────────────────────────────────
+  // ─── Product entities ───────────────────────────────────────────────────────
   accounts: {
     list: async (wsId: string): Promise<Account[]> => {
-      return getStorage<Account[]>(KEYS.ACCOUNTS, []).filter(a => a.workspace_id === wsId);
+      const rows = throwIfError(await db.from('accounts').select('*').eq('workspace_id', wsId).order('created_at', { ascending: false })) as any[];
+      const signals = throwIfError(await db.from('signals').select('account_id').eq('workspace_id', wsId)) as any[];
+      return (rows ?? []).map((row) => ({ ...row, arr: Number(row.arr), signal_count: (signals ?? []).filter((s) => s.account_id === row.id).length })) as Account[];
     },
     create: async (data: Omit<Account, 'id' | 'signal_count'>): Promise<Account> => {
-      const accounts = getStorage<Account[]>(KEYS.ACCOUNTS, []);
-      const newAcc: Account = { ...data, id: genId(), signal_count: 0 };
-      accounts.push(newAcc);
-      setStorage(KEYS.ACCOUNTS, accounts);
+      const row = throwIfError(await db.from('accounts').insert({ ...data, arr: data.arr ?? 0 }).select('*').single()) as any;
       triggerUpdate();
-      return newAcc;
+      return { ...row, arr: Number(row.arr), signal_count: 0 } as Account;
     },
   },
-
-  // ─── Signals ───────────────────────────────────────────────────────────────
   signals: {
     list: async (wsId: string): Promise<Signal[]> => {
-      return getStorage<Signal[]>(KEYS.SIGNALS, []).filter(s => s.workspace_id === wsId);
+      const rows = throwIfError(await db.from('signals').select('*').eq('workspace_id', wsId).order('created_at', { ascending: false })) as any[];
+      return (rows ?? []) as Signal[];
     },
     create: async (data: Omit<Signal, 'id' | 'created_at'>): Promise<Signal> => {
-      const signals = getStorage<Signal[]>(KEYS.SIGNALS, []);
-      const newSig: Signal = { ...data, id: genId(), created_at: new Date().toISOString() };
-      signals.push(newSig);
-      setStorage(KEYS.SIGNALS, signals);
+      const { accounts: _accounts, ...payload } = data;
+      const row = throwIfError(await db.from('signals').insert(payload).select('*').single()) as any;
       triggerUpdate();
-      return newSig;
+      return row as Signal;
     },
   },
-
-  // ─── Problems ──────────────────────────────────────────────────────────────
   problems: {
     list: async (wsId: string): Promise<Problem[]> => {
-      return getStorage<Problem[]>(KEYS.PROBLEMS, []).filter(p => p.workspace_id === wsId);
+      const rows = throwIfError(await db.from('problems').select('*, profiles:created_by(full_name)').eq('workspace_id', wsId).order('created_at', { ascending: false })) as any[];
+      return (rows ?? []).map((row) => ({ ...row, affected_arr: Number(row.affected_arr), users: row.profiles })) as Problem[];
     },
     create: async (data: Omit<Problem, 'id' | 'created_at' | 'evidence_count' | 'affected_arr' | 'trend' | 'status' | 'users'>): Promise<Problem> => {
-      const problems = getStorage<Problem[]>(KEYS.PROBLEMS, []);
-      const newProb: Problem = {
-        ...data,
-        id: genId(),
-        status: 'Active',
-        evidence_count: 0,
-        affected_arr: 0,
-        trend: 'Stable',
-        created_at: new Date().toISOString(),
-      };
-      problems.push(newProb);
-      setStorage(KEYS.PROBLEMS, problems);
+      const row = throwIfError(await db.from('problems').insert({ ...data, status: 'Active', evidence_count: 0, affected_arr: 0, trend: 'Stable' }).select('*').single()) as any;
       triggerUpdate();
-      return newProb;
+      return { ...row, affected_arr: Number(row.affected_arr) } as Problem;
     },
   },
-
-  // ─── Opportunities ─────────────────────────────────────────────────────────
   opportunities: {
     list: async (wsId: string): Promise<Opportunity[]> => {
-      return getStorage<Opportunity[]>(KEYS.OPPORTUNITIES, []).filter(o => o.workspace_id === wsId);
+      const rows = throwIfError(await db.from('opportunities').select('*, problems(*)').eq('workspace_id', wsId).order('created_at', { ascending: false })) as any[];
+      return (rows ?? []).map((row) => ({ ...row, opportunity_score: Number(row.opportunity_score), demand_score: Number(row.demand_score), pain_score: Number(row.pain_score), arr_score: Number(row.arr_score), trend_score: Number(row.trend_score) })) as Opportunity[];
     },
   },
-
-  // ─── Decisions ─────────────────────────────────────────────────────────────
   decisions: {
     list: async (wsId: string): Promise<Decision[]> => {
-      return getStorage<Decision[]>(KEYS.DECISIONS, []).filter(d => d.workspace_id === wsId);
+      const rows = throwIfError(await db.from('decisions').select('*, profiles:author_id(full_name)').eq('workspace_id', wsId).order('created_at', { ascending: false })) as any[];
+      return (rows ?? []).map((row) => ({ ...row, users: row.profiles })) as Decision[];
     },
     create: async (data: Omit<Decision, 'id' | 'created_at' | 'users'>): Promise<Decision> => {
-      const decisions = getStorage<Decision[]>(KEYS.DECISIONS, []);
-      const newDec: Decision = { ...data, id: genId(), created_at: new Date().toISOString(), users: null };
-      decisions.push(newDec);
-      setStorage(KEYS.DECISIONS, decisions);
+      const row = throwIfError(await db.from('decisions').insert(data).select('*').single()) as any;
       triggerUpdate();
-      return newDec;
+      return row as Decision;
     },
   },
-
-  // ─── Artifacts ─────────────────────────────────────────────────────────────
   artifacts: {
     list: async (wsId: string): Promise<Artifact[]> => {
-      return getStorage<Artifact[]>(KEYS.ARTIFACTS, []).filter(a => a.workspace_id === wsId);
+      const rows = throwIfError(await db.from('artifacts').select('*, profiles:author_id(full_name), decisions(title)').eq('workspace_id', wsId).order('updated_at', { ascending: false })) as any[];
+      return (rows ?? []).map((row) => ({ ...row, users: row.profiles })) as Artifact[];
     },
     create: async (data: Omit<Artifact, 'id' | 'created_at' | 'updated_at' | 'users'>): Promise<Artifact> => {
-      const artifacts = getStorage<Artifact[]>(KEYS.ARTIFACTS, []);
-      const now = new Date().toISOString();
-      const newArt: Artifact = { ...data, id: genId(), created_at: now, updated_at: now, users: null };
-      artifacts.push(newArt);
-      setStorage(KEYS.ARTIFACTS, artifacts);
+      const row = throwIfError(await db.from('artifacts').insert(data).select('*').single()) as any;
       triggerUpdate();
-      return newArt;
+      return row as Artifact;
     },
     update: async (id: string, data: Partial<Artifact>): Promise<void> => {
-      const artifacts = getStorage<Artifact[]>(KEYS.ARTIFACTS, []);
-      const idx = artifacts.findIndex(a => a.id === id);
-      if (idx !== -1) {
-        artifacts[idx] = { ...artifacts[idx], ...data, updated_at: new Date().toISOString() };
-        setStorage(KEYS.ARTIFACTS, artifacts);
-        triggerUpdate();
-      }
+      const allowed = Object.fromEntries(Object.entries(data).filter(([key]) => ['title', 'type', 'content'].includes(key)));
+      if (!Object.keys(allowed).length) return;
+      throwIfError(await db.from('artifacts').update({ ...allowed, updated_at: new Date().toISOString() }).eq('id', id));
+      triggerUpdate();
     },
   },
-
-  // ─── Launches ───────────────────────────────────────────────────────────────
   launches: {
     list: async (wsId: string): Promise<Launch[]> => {
-      return getStorage<Launch[]>(KEYS.LAUNCHES, []).filter(l => l.workspace_id === wsId);
+      const rows = throwIfError(await db.from('launches').select('*').eq('workspace_id', wsId).order('launched_at', { ascending: false })) as any[];
+      return (rows ?? []) as Launch[];
     },
     create: async (data: Omit<Launch, 'id'>): Promise<Launch> => {
-      const launches = getStorage<Launch[]>(KEYS.LAUNCHES, []);
-      const newLaunch: Launch = { ...data, id: genId() };
-      launches.push(newLaunch);
-      setStorage(KEYS.LAUNCHES, launches);
+      const row = throwIfError(await db.from('launches').insert(data).select('*').single()) as any;
       triggerUpdate();
-      return newLaunch;
+      return row as Launch;
     },
     update: async (id: string, data: Partial<Launch>): Promise<void> => {
-      const launches = getStorage<Launch[]>(KEYS.LAUNCHES, []);
-      const idx = launches.findIndex(l => l.id === id);
-      if (idx !== -1) {
-        launches[idx] = { ...launches[idx], ...data };
-        setStorage(KEYS.LAUNCHES, launches);
-        triggerUpdate();
-      }
+      const allowed = Object.fromEntries(Object.entries(data).filter(([key]) => ['title', 'action', 'expected_outcome', 'before_count', 'after_count', 'pm_verdict', 'notes'].includes(key)));
+      if (!Object.keys(allowed).length) return;
+      throwIfError(await db.from('launches').update(allowed).eq('id', id));
+      triggerUpdate();
     },
   },
 };
