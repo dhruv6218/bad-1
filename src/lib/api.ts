@@ -155,55 +155,49 @@ export const api = {
       return (data ?? []).map((invoice: any) => ({ ...invoice, amount: Number(invoice.amount), days_overdue: daysOverdue(invoice.due_date) })) as Invoice[];
     },
     create: async (data: Omit<Invoice, 'id' | 'created_at' | 'ai_status' | 'last_chased_at' | 'reminder_count' | 'days_overdue'>): Promise<Invoice> => {
-      const invoices = getStorage<Invoice[]>(KEYS.INVOICES, []);
-      const dueDate = new Date(data.due_date);
-      const today = new Date();
-      const daysOverdue = Math.max(0, Math.floor((today.getTime() - dueDate.getTime()) / 86400000));
-      const newInvoice: Invoice = {
-        ...data,
-        id: genId(),
-        ai_status: 'pending',
-        last_chased_at: null,
-        reminder_count: 0,
-        days_overdue: daysOverdue,
-        created_at: new Date().toISOString(),
-      };
-      invoices.push(newInvoice);
-      setStorage(KEYS.INVOICES, invoices);
-
-      const activity = getStorage<ActivityItem[]>(KEYS.ACTIVITY, []);
-      activity.unshift({ id: genId(), type: 'invoice_created', message: `New invoice added for ${data.client_name}`, timestamp: new Date().toISOString(), amount: data.amount });
-      setStorage(KEYS.ACTIVITY, activity.slice(0, 20));
-
+      if (!data.client_name.trim() || !/^\\S+@\\S+\\.\\S+$/.test(data.client_email)) throw new Error('Enter a valid client name and email.');
+      if (!Number.isFinite(data.amount) || data.amount < 0) throw new Error('Amount must be a valid non-negative number.');
+      const row = throwIfError(await db.from('invoices').insert({
+        workspace_id: data.workspace_id,
+        client_name: data.client_name.trim(),
+        client_email: data.client_email.trim().toLowerCase(),
+        amount: data.amount,
+        currency: data.currency,
+        due_date: data.due_date,
+        status: data.status,
+      }).select('*').single()) as any;
+      await db.from('activity_items').insert({ workspace_id: data.workspace_id, type: 'invoice_created', message: `New invoice added for ${data.client_name.trim()}`, amount: data.amount });
       triggerUpdate();
-      return newInvoice;
+      return { ...row, amount: Number(row.amount), days_overdue: daysOverdue(row.due_date) } as Invoice;
     },
     update: async (id: string, data: Partial<Invoice>): Promise<void> => {
-      const invoices = getStorage<Invoice[]>(KEYS.INVOICES, []);
-      const idx = invoices.findIndex(i => i.id === id);
-      if (idx !== -1) {
-        invoices[idx] = { ...invoices[idx], ...data };
-        setStorage(KEYS.INVOICES, invoices);
-        triggerUpdate();
-      }
+      const allowed = Object.fromEntries(Object.entries(data).filter(([key]) => ['client_name', 'client_email', 'amount', 'currency', 'due_date', 'status', 'ai_status', 'last_chased_at', 'reminder_count'].includes(key)));
+      if (Object.keys(allowed).length === 0) return;
+      throwIfError(await db.from('invoices').update(allowed).eq('id', id));
+      triggerUpdate();
     },
   },
 
   gateways: {
     list: async (wsId: string): Promise<GatewaySettings[]> => {
-      return (throwIfError(await db.from('gateway_settings').select('*').eq('workspace_id', wsId).order('created_at', { ascending: false })) ?? []) as GatewaySettings[];
+      const rows = throwIfError(await db.from('gateway_settings').select('id,workspace_id,type,label,static_url,is_active,created_at').eq('workspace_id', wsId).order('created_at', { ascending: false })) ?? [];
+      return rows as GatewaySettings[];
     },
     create: async (data: Omit<GatewaySettings, 'id' | 'created_at'>): Promise<GatewaySettings> => {
-      const gateways = getStorage<GatewaySettings[]>(KEYS.GATEWAYS, []);
-      const newGw: GatewaySettings = { ...data, id: genId(), created_at: new Date().toISOString() };
-      gateways.push(newGw);
-      setStorage(KEYS.GATEWAYS, gateways);
+      if (!data.label.trim()) throw new Error('Gateway name is required.');
+      const row = throwIfError(await db.from('gateway_settings').insert({
+        workspace_id: data.workspace_id,
+        type: data.type,
+        label: data.label.trim(),
+        api_key: data.api_key || null,
+        static_url: data.static_url || null,
+        is_active: data.is_active,
+      }).select('id,workspace_id,type,label,static_url,is_active,created_at').single());
       triggerUpdate();
-      return newGw;
+      return row as GatewaySettings;
     },
     remove: async (id: string): Promise<void> => {
-      const gateways = getStorage<GatewaySettings[]>(KEYS.GATEWAYS, []).filter(g => g.id !== id);
-      setStorage(KEYS.GATEWAYS, gateways);
+      throwIfError(await db.from('gateway_settings').delete().eq('id', id));
       triggerUpdate();
     },
   },
@@ -213,7 +207,14 @@ export const api = {
       return throwIfError(await db.from('tone_settings').select('*').eq('workspace_id', wsId).maybeSingle()) as ToneSettings | null;
     },
     save: async (data: ToneSettings): Promise<void> => {
-      setStorage(KEYS.TONE, { ...data, updated_at: new Date().toISOString() });
+      if (data.tone_level < 1 || data.tone_level > 5) throw new Error('Tone level must be between 1 and 5.');
+      throwIfError(await db.from('tone_settings').upsert({
+        workspace_id: data.workspace_id,
+        sample_emails: data.sample_emails,
+        tone_level: data.tone_level,
+        ai_prompt: data.ai_prompt,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'workspace_id' }));
       triggerUpdate();
     },
   },
