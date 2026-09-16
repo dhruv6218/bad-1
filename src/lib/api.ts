@@ -52,7 +52,17 @@ const setStorage = <T>(key: string, value: T): void => {
 export const triggerUpdate = () => window.dispatchEvent(new Event('data-updated'));
 
 // ─── Seed Data ────────────────────────────────────────────────────────────────
-export const initializeWorkspace = (workspaceId: string) => {
+export const initializeWorkspace = (_workspaceId: string) => {
+  // Production workspaces are intentionally empty until the user creates data.
+  // Seed data must never be written to browser storage or mixed with tenant data.
+  return;
+};
+
+/*
+ * Legacy demo seed implementation retained below for reference during migration.
+ * It is unreachable in production and does not execute.
+ */
+const legacySeedWorkspace = (workspaceId: string) => {
   const existing = getStorage<Invoice[]>(KEYS.INVOICES, []);
   if (existing.length > 0) return;
 
@@ -254,6 +264,12 @@ export const api = {
 
   // ─── Product entities ───────────────────────────────────────────────────────
   accounts: {
+    get: async (id: string): Promise<Account | null> => {
+      const row = throwIfError(await db.from('accounts').select('*').eq('id', id).maybeSingle()) as any;
+      if (!row) return null;
+      const signalRows = throwIfError(await db.from('signals').select('id').eq('account_id', id)) as any[];
+      return { ...row, arr: Number(row.arr), signal_count: signalRows?.length ?? 0 } as Account;
+    },
     list: async (wsId: string): Promise<Account[]> => {
       const rows = throwIfError(await db.from('accounts').select('*').eq('workspace_id', wsId).order('created_at', { ascending: false })) as any[];
       const signals = throwIfError(await db.from('signals').select('account_id').eq('workspace_id', wsId)) as any[];
@@ -278,6 +294,11 @@ export const api = {
     },
   },
   problems: {
+    get: async (id: string): Promise<Problem | null> => {
+      const row = throwIfError(await db.from('problems').select('*, profiles:created_by(full_name)').eq('id', id).maybeSingle()) as any;
+      if (!row) return null;
+      return { ...row, affected_arr: Number(row.affected_arr), users: row.profiles } as Problem;
+    },
     list: async (wsId: string): Promise<Problem[]> => {
       const rows = throwIfError(await db.from('problems').select('*, profiles:created_by(full_name)').eq('workspace_id', wsId).order('created_at', { ascending: false })) as any[];
       return (rows ?? []).map((row) => ({ ...row, affected_arr: Number(row.affected_arr), users: row.profiles })) as Problem[];
@@ -289,6 +310,11 @@ export const api = {
     },
   },
   opportunities: {
+    get: async (id: string): Promise<Opportunity | null> => {
+      const row = throwIfError(await db.from('opportunities').select('*, problems(*)').eq('id', id).maybeSingle()) as any;
+      if (!row) return null;
+      return { ...row, opportunity_score: Number(row.opportunity_score), demand_score: Number(row.demand_score), pain_score: Number(row.pain_score), arr_score: Number(row.arr_score), trend_score: Number(row.trend_score) } as Opportunity;
+    },
     list: async (wsId: string): Promise<Opportunity[]> => {
       const rows = throwIfError(await db.from('opportunities').select('*, problems(*)').eq('workspace_id', wsId).order('created_at', { ascending: false })) as any[];
       return (rows ?? []).map((row) => ({ ...row, opportunity_score: Number(row.opportunity_score), demand_score: Number(row.demand_score), pain_score: Number(row.pain_score), arr_score: Number(row.arr_score), trend_score: Number(row.trend_score) })) as Opportunity[];
@@ -417,8 +443,7 @@ export const useAccounts = (wsId?: string) => {
 export const useAccount = (id?: string) => {
   const { data, isLoading } = useQuery(async () => {
     if (!id) return null;
-    const accounts = await api.accounts.list('');
-    const account = accounts.find(a => a.id === id);
+    const account = await api.accounts.get(id);
     if (!account) return null;
     const signals = await api.signals.list('');
     const accountSignals = signals.filter(s => s.account_id === id);
@@ -447,8 +472,7 @@ export const useProblems = (wsId?: string) => {
 export const useProblem = (id?: string) => {
   const { data, isLoading } = useQuery(async () => {
     if (!id) return null;
-    const problems = await api.problems.list('');
-    const problem = problems.find(p => p.id === id);
+    const problem = await api.problems.get(id);
     if (!problem) return null;
     const signals = await api.signals.list('');
     const problemSignals = signals.filter(s => s.product_area === problem.product_area);
@@ -470,8 +494,7 @@ export const useOpportunities = (wsId?: string) => {
 export const useOpportunity = (id?: string) => {
   const { data, isLoading } = useQuery(async () => {
     if (!id) return null;
-    const opps = await api.opportunities.list('');
-    return opps.find(o => o.id === id) || null;
+    return api.opportunities.get(id);
   }, [id]);
   return { data, isLoading };
 };
@@ -487,8 +510,8 @@ export const useDecisions = (wsId?: string) => {
 export const useDecision = (id?: string) => {
   const { data, isLoading } = useQuery(async () => {
     if (!id) return null;
-    const decisions = await api.decisions.list('');
-    return decisions.find(d => d.id === id) || null;
+    const row = throwIfError(await db.from('decisions').select('*, profiles:author_id(full_name)').eq('id', id).maybeSingle()) as any;
+    return row ? { ...row, users: row.profiles } as Decision : null;
   }, [id]);
   return { data, isLoading };
 };
@@ -504,8 +527,8 @@ export const useArtifacts = (wsId?: string) => {
 export const useArtifact = (id?: string) => {
   const { data, isLoading } = useQuery(async () => {
     if (!id) return null;
-    const artifacts = await api.artifacts.list('');
-    return artifacts.find(a => a.id === id) || null;
+    const row = throwIfError(await db.from('artifacts').select('*, profiles:author_id(full_name), decisions(title)').eq('id', id).maybeSingle()) as any;
+    return row ? { ...row, users: row.profiles } as Artifact : null;
   }, [id]);
   return { data, isLoading };
 };
