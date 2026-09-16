@@ -1,93 +1,19 @@
-'use client';
+'use client'
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useAuth } from './AuthContext';
-import { Workspace } from '../types';
-import { initializeWorkspace } from '../lib/api';
+import React, { createContext, useContext, useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { useAuth } from './AuthContext'
+import type { Workspace } from '../types'
 
-interface WorkspaceContextType {
-  activeWorkspace: Workspace | null;
-  workspaces: Workspace[];
-  isWorkspaceInitializing: boolean;
-  setActiveWorkspace: (ws: Workspace) => void;
-  refreshWorkspaces: () => Promise<void>;
-  updateWorkspaceName: (name: string) => void;
+interface WorkspaceContextType { activeWorkspace: Workspace | null; workspaces: Workspace[]; isWorkspaceInitializing: boolean; setActiveWorkspace: (ws: Workspace) => void; refreshWorkspaces: () => Promise<void>; updateWorkspaceName: (name: string) => void }
+const WorkspaceContext = createContext<WorkspaceContextType>({ activeWorkspace: null, workspaces: [], isWorkspaceInitializing: true, setActiveWorkspace: () => {}, refreshWorkspaces: async () => {}, updateWorkspaceName: () => {} })
+export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth(); const supabase = createClient(); const db = supabase as any; const [workspaces, setWorkspaces] = useState<Workspace[]>([]); const [activeWorkspace, setActive] = useState<Workspace | null>(null); const [isWorkspaceInitializing, setLoading] = useState(true)
+  const refreshWorkspaces = async () => { if (!user) { setWorkspaces([]); setActive(null); setLoading(false); return }; setLoading(true); const { data } = await db.from('workspaces').select('*').order('created_at'); const rows = (data ?? []) as Workspace[]; setWorkspaces(rows); setActive(current => rows.find(w => w.id === current?.id) ?? rows[0] ?? null); setLoading(false) }
+  useEffect(() => { refreshWorkspaces() }, [user?.id])
+  const createWorkspace = async () => { if (!user || workspaces.length) return; const slug = `${(user.user_metadata.full_name ?? user.email?.split('@')[0] ?? 'workspace').toString().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${crypto.randomUUID().slice(0, 6)}`; const { data } = await db.from('workspaces').insert({ owner_id: user.id, name: 'My Workspace', slug, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', plan: 'Hook' }).select().single(); if (data) { await db.from('workspace_members').insert({ workspace_id: data.id, user_id: user.id, role: 'owner' }); await refreshWorkspaces() } }
+  useEffect(() => { if (user && !isWorkspaceInitializing && !workspaces.length) createWorkspace() }, [user?.id, isWorkspaceInitializing, workspaces.length])
+  const updateWorkspaceName = async (name: string) => { if (!activeWorkspace) return; await db.from('workspaces').update({ name }).eq('id', activeWorkspace.id); await refreshWorkspaces() }
+  return <WorkspaceContext.Provider value={{ activeWorkspace, workspaces, isWorkspaceInitializing, setActiveWorkspace: setActive, refreshWorkspaces, updateWorkspaceName }}>{children}</WorkspaceContext.Provider>
 }
-
-const WorkspaceContext = createContext<WorkspaceContextType>({
-  activeWorkspace: null, workspaces: [], isWorkspaceInitializing: true,
-  setActiveWorkspace: () => {}, refreshWorkspaces: async () => {},
-  updateWorkspaceName: () => {},
-});
-
-const STORAGE_KEY = 'astrix_demo_workspace';
-
-const DEFAULT_MOCK_WORKSPACE: Workspace = {
-  id: 'ws-demo-astrix',
-  name: 'Acme Corp Workspace',
-  slug: 'acme-corp',
-  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
-  logo_url: null,
-  plan: 'Hook',
-  created_at: new Date().toISOString(),
-};
-
-export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([DEFAULT_MOCK_WORKSPACE]);
-  const [activeWorkspace, setActiveWs] = useState<Workspace | null>(DEFAULT_MOCK_WORKSPACE);
-  const [isWorkspaceInitializing, setIsWorkspaceInitializing] = useState(false);
-
-  const fetchWorkspaces = async () => {
-    setIsWorkspaceInitializing(true);
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const ws = JSON.parse(stored) as Workspace;
-        setWorkspaces([ws]);
-        setActiveWs(ws);
-        initializeWorkspace(ws.id);
-      } catch {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_MOCK_WORKSPACE));
-        setWorkspaces([DEFAULT_MOCK_WORKSPACE]);
-        setActiveWs(DEFAULT_MOCK_WORKSPACE);
-        initializeWorkspace(DEFAULT_MOCK_WORKSPACE.id);
-      }
-    } else {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_MOCK_WORKSPACE));
-      setWorkspaces([DEFAULT_MOCK_WORKSPACE]);
-      setActiveWs(DEFAULT_MOCK_WORKSPACE);
-      initializeWorkspace(DEFAULT_MOCK_WORKSPACE.id);
-    }
-    setIsWorkspaceInitializing(false);
-  };
-
-  const handleSetActiveWorkspace = (ws: Workspace) => {
-    setActiveWs(ws);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(ws));
-  };
-
-  const updateWorkspaceName = (name: string) => {
-    if (!activeWorkspace) return;
-    const updated = { ...activeWorkspace, name };
-    handleSetActiveWorkspace(updated);
-    setWorkspaces([updated]);
-  };
-
-  useEffect(() => {
-    fetchWorkspaces();
-  }, [user]);
-
-  return (
-    <WorkspaceContext.Provider value={{
-      activeWorkspace, workspaces, isWorkspaceInitializing,
-      setActiveWorkspace: handleSetActiveWorkspace,
-      refreshWorkspaces: fetchWorkspaces,
-      updateWorkspaceName,
-    }}>
-      {children}
-    </WorkspaceContext.Provider>
-  );
-};
-
-export const useWorkspace = () => useContext(WorkspaceContext);
+export const useWorkspace = () => useContext(WorkspaceContext)

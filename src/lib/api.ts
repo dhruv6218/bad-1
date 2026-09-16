@@ -5,6 +5,12 @@ import {
   Invoice, GatewaySettings, ToneSettings, ActivityItem, AdminUser,
   Account, Signal, Problem, Opportunity, Decision, Artifact, Launch,
 } from '../types';
+import { createClient } from './supabase/client';
+
+const supabase = createClient();
+const db = supabase as any;
+const daysOverdue = (dueDate: string) => Math.max(0, Math.floor((Date.now() - new Date(dueDate).getTime()) / 86400000));
+const throwIfError = <T>(result: { data: T; error: { message: string } | null }) => { if (result.error) throw new Error(result.error.message); return result.data; };
 
 // ─── Storage Keys ───────────────────────────────────────────────────────────
 const KEYS = {
@@ -145,7 +151,8 @@ export const initializeWorkspace = (workspaceId: string) => {
 export const api = {
   invoices: {
     list: async (wsId: string): Promise<Invoice[]> => {
-      return getStorage<Invoice[]>(KEYS.INVOICES, []).filter(i => i.workspace_id === wsId);
+      const data = throwIfError(await db.from('invoices').select('*').eq('workspace_id', wsId).order('created_at', { ascending: false })) as any[];
+      return (data ?? []).map((invoice: any) => ({ ...invoice, amount: Number(invoice.amount), days_overdue: daysOverdue(invoice.due_date) })) as Invoice[];
     },
     create: async (data: Omit<Invoice, 'id' | 'created_at' | 'ai_status' | 'last_chased_at' | 'reminder_count' | 'days_overdue'>): Promise<Invoice> => {
       const invoices = getStorage<Invoice[]>(KEYS.INVOICES, []);
@@ -184,7 +191,7 @@ export const api = {
 
   gateways: {
     list: async (wsId: string): Promise<GatewaySettings[]> => {
-      return getStorage<GatewaySettings[]>(KEYS.GATEWAYS, []).filter(g => g.workspace_id === wsId);
+      return (throwIfError(await db.from('gateway_settings').select('*').eq('workspace_id', wsId).order('created_at', { ascending: false })) ?? []) as GatewaySettings[];
     },
     create: async (data: Omit<GatewaySettings, 'id' | 'created_at'>): Promise<GatewaySettings> => {
       const gateways = getStorage<GatewaySettings[]>(KEYS.GATEWAYS, []);
@@ -203,8 +210,7 @@ export const api = {
 
   tone: {
     get: async (wsId: string): Promise<ToneSettings | null> => {
-      const settings = getStorage<ToneSettings | null>(KEYS.TONE, null);
-      return settings?.workspace_id === wsId ? settings : null;
+      return throwIfError(await db.from('tone_settings').select('*').eq('workspace_id', wsId).maybeSingle()) as ToneSettings | null;
     },
     save: async (data: ToneSettings): Promise<void> => {
       setStorage(KEYS.TONE, { ...data, updated_at: new Date().toISOString() });
@@ -213,8 +219,11 @@ export const api = {
   },
 
   activity: {
-    list: async (): Promise<ActivityItem[]> => {
-      return getStorage<ActivityItem[]>(KEYS.ACTIVITY, []);
+    list: async (wsId?: string): Promise<ActivityItem[]> => {
+      let query = db.from('activity_items').select('*').order('created_at', { ascending: false }).limit(50);
+      if (wsId) query = query.eq('workspace_id', wsId);
+      const rows = throwIfError(await query) as any;
+      return (rows ?? []).map((row: any) => ({ ...row, timestamp: row.created_at, amount: row.amount == null ? undefined : Number(row.amount) })) as ActivityItem[];
     },
   },
 
