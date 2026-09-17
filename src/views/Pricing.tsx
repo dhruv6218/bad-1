@@ -102,12 +102,21 @@ export const Pricing = () => {
     }
 
     setLoadingTier(tier.name);
-    
-    setTimeout(() => {
+    const plan = tier.name === 'Solo' ? (isAnnual ? 'solo-yearly' : 'solo-monthly') : tier.name === 'Agency' ? (isAnnual ? 'agency-yearly' : 'agency-monthly') : null;
+    if (!plan) {
       setLoadingTier(null);
-      addToast(`Redirecting to checkout for ${tier.name} plan...`, "success");
-      router.push('/app/settings?tab=billing');
-    }, 1500);
+      router.push('/app');
+      return;
+    }
+    try {
+      const response = await fetch('/api/billing/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceId: activeWorkspace.id, plan }) });
+      const result = await response.json();
+      if (!response.ok || !result.checkoutUrl) throw new Error(result.error ?? 'Checkout unavailable');
+      window.location.assign(result.checkoutUrl);
+    } catch (error) {
+      setLoadingTier(null);
+      addToast(error instanceof Error ? error.message : 'Could not start checkout.', 'error');
+    }
   };
 
   return (
