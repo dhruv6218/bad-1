@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -36,10 +36,6 @@ export const AdminDashboard: React.FC = () => {
   const [announcementMsg, setAnnouncementMsg] = useState('');
   const [currentAnnouncement, setCurrentAnnouncement] = useState('');
 
-  useEffect(() => {
-    const saved = localStorage.getItem('global_announcement');
-    if (saved) setCurrentAnnouncement(saved);
-  }, []);
 
   const handleSignOut = async () => { await signOut(); router.push('/godview'); };
 
@@ -64,23 +60,18 @@ export const AdminDashboard: React.FC = () => {
     refetch(); setProcessingId(null);
   };
 
-  const handleImpersonate = (u: AdminUser) => {
-    localStorage.setItem('impersonated_user_id', u.id);
-    localStorage.setItem('impersonated_user_name', u.full_name);
-    addToast(`Impersonating ${u.full_name}...`, 'success');
-    router.push('/app');
+  const handleImpersonate = (_u: AdminUser) => {
+    addToast('Impersonation is disabled for security. Use a support workflow with audited access instead.', 'error');
   };
 
   const handleSendAnnouncement = () => {
     if (!announcementMsg.trim()) return;
-    localStorage.setItem('global_announcement', announcementMsg);
     setCurrentAnnouncement(announcementMsg);
     setAnnouncementMsg('');
     addToast('Global announcement sent!', 'success');
   };
 
   const handleClearAnnouncement = () => {
-    localStorage.removeItem('global_announcement');
     setCurrentAnnouncement('');
     addToast('Announcement cleared.', 'success');
   };

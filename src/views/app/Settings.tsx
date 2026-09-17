@@ -29,18 +29,23 @@ export const Settings = () => {
     router.push('/login');
   };
 
-  const handleDeleteAccount = () => {
-    if (window.confirm("Are you absolutely sure you want to delete your account? This action cannot be undone and all data will be lost.")) {
-      setIsDeleting(true);
-      setTimeout(() => {
-        addToast("Account deletion mockup. (Backend not connected)", "success");
-        setIsDeleting(false);
-      }, 1500);
+  const handleDeleteAccount = async () => {
+    if (!window.confirm('Are you absolutely sure you want to delete your account? This action cannot be undone and all data will be lost.')) return;
+    setIsDeleting(true);
+    try {
+      const response = await fetch('/api/account/delete', { method: 'DELETE' });
+      if (!response.ok) throw new Error('Account deletion failed');
+      await signOut();
+      router.replace('/');
+    } catch {
+      addToast('We could not delete your account. Please try again.', 'error');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   const handleManageSubscription = () => {
-    addToast("Redirecting to Stripe Billing Portal... (Mockup)", "success");
+    router.push('/pricing');
   };
 
   const TABS = [
