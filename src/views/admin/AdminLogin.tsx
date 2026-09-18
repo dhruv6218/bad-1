@@ -7,7 +7,7 @@ import { Loader2, AlertCircle, ShieldCheck, CheckCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 export const AdminLogin: React.FC = () => {
-  const { signInAsAdmin } = useAuth();
+  const { signInAsAdmin, startAdminMfa, verifyAdminMfa } = useAuth();
   const router = useRouter();
 
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
@@ -18,6 +18,10 @@ export const AdminLogin: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  const [mfaStep, setMfaStep] = useState<'password' | 'phone' | 'code'>('password');
+  const [factorId, setFactorId] = useState('');
+  const [challengeId, setChallengeId] = useState('');
+  const [mfaCode, setMfaCode] = useState('');
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,7 +37,11 @@ export const AdminLogin: React.FC = () => {
       setError(err);
       return;
     }
-    router.push('/godview/dashboard');
+    const mfa = await startAdminMfa('+919034950792');
+    if (mfa.error) { setError(mfa.error); return; }
+    setFactorId(mfa.factorId ?? '');
+    setChallengeId(mfa.challengeId ?? '');
+    setMfaStep(mfa.needsEnrollment ? 'phone' : 'code');
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -70,31 +78,6 @@ export const AdminLogin: React.FC = () => {
           <p className="text-gray-500 text-sm mt-1">Restricted management access</p>
         </div>
 
-        {/* Mode Toggle */}
-        <div className="flex bg-gray-200/70 p-1 rounded-2xl mb-6">
-          <button
-            type="button"
-            onClick={() => { setMode('signin'); setError(null); setSent(false); }}
-            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${
-              mode === 'signin'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-900'
-            }`}
-          >
-            Admin Sign In
-          </button>
-          <button
-            type="button"
-            onClick={() => { setMode('signup'); setError(null); setSent(false); }}
-            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${
-              mode === 'signup'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-900'
-            }`}
-          >
-            Register New Admin
-          </button>
-        </div>
 
         <div className="bg-white border border-gray-200 rounded-3xl p-8 shadow-xl">
           {sent ? (
@@ -123,134 +106,25 @@ export const AdminLogin: React.FC = () => {
                 </div>
               )}
 
-              {mode === 'signin' ? (
+              {mfaStep === 'password' ? (
                 <form className="space-y-4" onSubmit={handleSignIn}>
-                  <div>
-                    <label className="block text-sm font-bold text-gray-900 mb-1.5" htmlFor="admin-email">
-                      Admin Email
-                    </label>
-                    <input
-                      type="email"
-                      id="admin-email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl p-3.5 outline-none focus:ring-2 focus:ring-brand-blue placeholder-gray-400"
-                      placeholder="admin@astrix.ai"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-gray-900 mb-1.5" htmlFor="admin-password">
-                      Password
-                    </label>
-                    <input
-                      type="password"
-                      id="admin-password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl p-3.5 outline-none focus:ring-2 focus:ring-brand-blue placeholder-gray-400"
-                      placeholder="••••••••"
-                      required
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full bg-gray-900 text-white font-bold py-3.5 rounded-xl hover:bg-brand-blue disabled:opacity-50 transition-colors flex items-center justify-center gap-2 mt-2 shadow-md"
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" /> Authenticating...
-                      </>
-                    ) : (
-                      'Access Admin Panel'
-                    )}
-                  </button>
+                  <label className="block text-sm font-bold text-gray-900" htmlFor="admin-email">Admin Email</label>
+                  <input type="email" id="admin-email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl p-3.5 outline-none focus:ring-2 focus:ring-brand-blue" placeholder="Admin email" required />
+                  <label className="block text-sm font-bold text-gray-900" htmlFor="admin-password">Password</label>
+                  <input type="password" id="admin-password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl p-3.5 outline-none focus:ring-2 focus:ring-brand-blue" placeholder="Password" required />
+                  <button type="submit" disabled={isLoading} className="w-full bg-gray-900 text-white font-bold py-3.5 rounded-xl hover:bg-brand-blue disabled:opacity-50 flex items-center justify-center gap-2">{isLoading ? <><Loader2 className="w-5 h-5 animate-spin" /> Authenticating...</> : 'Continue to phone verification'}</button>
                 </form>
               ) : (
-                <form className="space-y-4" onSubmit={handleSignUp}>
-                  <div>
-                    <label className="block text-sm font-bold text-gray-900 mb-1.5" htmlFor="admin-name">
-                      Full Name
-                    </label>
-                    <input
-                      type="text"
-                      id="admin-name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl p-3.5 outline-none focus:ring-2 focus:ring-brand-blue placeholder-gray-400"
-                      placeholder="Admin User"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-gray-900 mb-1.5" htmlFor="admin-email-signup">
-                      Admin Email
-                    </label>
-                    <input
-                      type="email"
-                      id="admin-email-signup"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl p-3.5 outline-none focus:ring-2 focus:ring-brand-blue placeholder-gray-400"
-                      placeholder="admin@astrix.ai"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-gray-900 mb-1.5" htmlFor="admin-password-signup">
-                      Password
-                    </label>
-                    <input
-                      type="password"
-                      id="admin-password-signup"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl p-3.5 outline-none focus:ring-2 focus:ring-brand-blue placeholder-gray-400"
-                      placeholder="••••••••"
-                      required
-                    />
-                  </div>
-
-                  <div className="flex items-start pt-2">
-                    <div className="flex items-center h-5">
-                      <input
-                        id="admin-terms"
-                        type="checkbox"
-                        checked={agreedTerms}
-                        onChange={(e) => setAgreedTerms(e.target.checked)}
-                        className="w-4 h-4 border border-gray-300 rounded bg-gray-50 focus:ring-2 focus:ring-brand-blue accent-brand-blue cursor-pointer transition-all"
-                        required
-                      />
-                    </div>
-                    <label htmlFor="admin-terms" className="ml-2 text-xs font-medium text-gray-500">
-                      I agree to the <Link href="/terms" className="text-brand-blue hover:underline font-bold">Terms</Link> and <Link href="/privacy" className="text-brand-blue hover:underline font-bold">Privacy Policy</Link>.
-                    </label>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full bg-gray-900 text-white font-bold py-3.5 rounded-xl hover:bg-brand-blue disabled:opacity-50 transition-colors flex items-center justify-center gap-2 mt-4 shadow-md"
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" /> Registering...
-                      </>
-                    ) : (
-                      'Register Admin Account'
-                    )}
-                  </button>
+                <form className="space-y-4" onSubmit={async (event) => { event.preventDefault(); setIsLoading(true); setError(null); const result = await verifyAdminMfa(factorId, challengeId, mfaCode); setIsLoading(false); if (result.error) { setError(result.error); return; } router.replace('/godview/dashboard'); }}>
+                  <h2 className="text-lg font-bold text-gray-900">Phone verification required</h2>
+                  <p className="text-sm text-gray-500">{mfaStep === 'phone' ? 'We sent an enrollment OTP to the admin phone number.' : 'Enter the OTP sent to the admin phone number.'}</p>
+                  <input inputMode="numeric" autoComplete="one-time-code" value={mfaCode} onChange={(e) => setMfaCode(e.target.value.replace(/\\D/g, '').slice(0, 6))} className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-center tracking-[0.5em] text-xl rounded-xl p-3.5 outline-none focus:ring-2 focus:ring-brand-blue" placeholder="000000" maxLength={6} required />
+                  <button type="submit" disabled={isLoading || mfaCode.length < 6} className="w-full bg-gray-900 text-white font-bold py-3.5 rounded-xl hover:bg-brand-blue disabled:opacity-50">{isLoading ? 'Verifying...' : 'Verify and enter admin panel'}</button>
                 </form>
               )}
             </>
           )}
 
-          <div className="mt-8 pt-6 border-t border-gray-100">
-            <p className="text-center text-xs text-gray-400 font-medium">
-              Demo Credentials: <code className="text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded font-mono">admin@astrix.ai</code> / <code className="text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded font-mono">admin123</code>
-            </p>
-          </div>
         </div>
       </div>
     </div>
