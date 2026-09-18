@@ -4,7 +4,9 @@ import {
   FileText, CheckCircle2, AlertCircle, Clock, Send, TrendingUp, Pause, Play, Plus, Eye 
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { useToast } from '../../contexts/ToastContext';
+import { api } from '../../lib/api';
 import { Skeleton } from '../../components/ui/Skeleton';
 
 interface Invoice {
@@ -21,16 +23,10 @@ interface Invoice {
   reminder_count: number;
 }
 
-const MOCK_INVOICES: Invoice[] = [
-  { id: '1', client_name: 'Acme Corp', client_email: 'billing@acme.com', amount: 2400, currency: 'USD', due_date: '2025-01-01', status: 'pending', days_overdue: 14, ai_status: 'nudge_sent', last_chased_at: '2025-01-10', reminder_count: 2 },
-  { id: '2', client_name: 'TechStart GmbH', client_email: 'finance@techstart.de', amount: 1800, currency: 'EUR', due_date: '2024-12-28', status: 'pending', days_overdue: 18, ai_status: 'escalated', last_chased_at: '2025-01-08', reminder_count: 3 },
-  { id: '3', client_name: 'DataFlow Ltd', client_email: 'accounts@dataflow.co', amount: 890, currency: 'USD', due_date: '2025-01-05', status: 'pending', days_overdue: 10, ai_status: 'pending', last_chased_at: null, reminder_count: 0 },
-  { id: '4', client_name: 'InnovateLab', client_email: 'pay@innovatelab.com', amount: 1500, currency: 'USD', due_date: '2024-12-15', status: 'paid', days_overdue: 0, ai_status: 'paid', last_chased_at: '2024-12-20', reminder_count: 1 },
-  { id: '5', client_name: 'CloudScale Inc', client_email: 'ap@cloudscale.io', amount: 3200, currency: 'USD', due_date: '2024-12-20', status: 'paused', days_overdue: 25, ai_status: 'nudge_sent', last_chased_at: '2025-01-05', reminder_count: 2 },
-];
 
 export const Invoices = () => {
   const { user } = useAuth();
+  const { activeWorkspace } = useWorkspace();
   const { addToast } = useToast();
   
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -38,26 +34,30 @@ export const Invoices = () => {
   const [invoiceFilter, setInvoiceFilter] = useState<'all' | 'pending' | 'paused' | 'paid'>('all');
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setInvoices(MOCK_INVOICES);
-      setIsLoading(false);
-    }, 600);
-    return () => clearTimeout(timer);
-  }, []);
+    let cancelled = false;
+    if (!activeWorkspace?.id) { setInvoices([]); setIsLoading(false); return () => { cancelled = true; }; }
+    setIsLoading(true);
+    api.invoices.list(activeWorkspace.id)
+      .then((rows) => { if (!cancelled) setInvoices(rows as Invoice[]); })
+      .catch(() => { if (!cancelled) addToast('Could not load invoices.', 'error'); })
+      .finally(() => { if (!cancelled) setIsLoading(false); });
+    return () => { cancelled = true; };
+  }, [activeWorkspace?.id, addToast]);
 
   const formatCurrency = (value: number, currency = 'USD') => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(value);
   };
 
-  const handlePauseAI = (id: string) => {
-    setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status: 'paused' as const } : inv));
-    addToast('AI paused for this invoice. You can resume anytime.', 'success');
+  const updateInvoiceStatus = async (id: string, status: 'paused' | 'pending') => {
+    try {
+      await api.invoices.update(id, { status });
+      setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status } : inv));
+      addToast(status === 'paused' ? 'AI paused for this invoice.' : 'AI resumed for this invoice.', 'success');
+    } catch { addToast('Could not update invoice schedule.', 'error'); }
   };
 
-  const handleResumeAI = (id: string) => {
-    setInvoices(prev => prev.map(inv => inv.id === id ? { ...inv, status: 'pending' as const } : inv));
-    addToast('AI resumed. Next reminder scheduled in 3 days.', 'success');
-  };
+  const handlePauseAI = (id: string) => updateInvoiceStatus(id, 'paused');
+  const handleResumeAI = (id: string) => updateInvoiceStatus(id, 'pending');
 
   const getStatusBadge = (status: Invoice['status'], aiStatus: Invoice['ai_status']) => {
     if (status === 'paid') return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-green-100 text-green-700 border border-green-200 whitespace-nowrap"><CheckCircle2 className="w-3 h-3" /> Paid</span>;

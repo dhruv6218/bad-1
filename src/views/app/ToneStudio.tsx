@@ -2,28 +2,49 @@ import React, { useState } from 'react';
 import { AppLayout } from '../../layouts/AppLayout';
 import { Bot, RefreshCw, Sparkles, Zap, Copy } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
+import { useWorkspace } from '../../contexts/WorkspaceContext';
+import { api } from '../../lib/api';
 import { AIBadge } from '../../components/ui/AIBadge';
 
 export const ToneStudio = () => {
   const { addToast } = useToast();
+  const { activeWorkspace } = useWorkspace();
   
   const [toneLevel, setToneLevel] = useState(2);
   const [toneSample, setToneSample] = useState('');
   const [generatedPreview, setGeneratedPreview] = useState('');
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleGeneratePreview = () => {
+  React.useEffect(() => {
+    if (!activeWorkspace?.id) return;
+    api.tone.get(activeWorkspace.id).then((tone) => {
+      if (!tone) return;
+      setToneSample(tone.sample_emails || '');
+      setToneLevel(tone.tone_level || 2);
+    }).catch(() => addToast('Could not load saved tone settings.', 'error'));
+  }, [activeWorkspace?.id, addToast]);
+
+  const handleGeneratePreview = async () => {
     if (!toneSample.trim()) { addToast('Paste a sample email first.', 'warning'); return; }
     setIsGeneratingPreview(true);
-    setTimeout(() => {
-      const previews: Record<number, string> = {
-        1: `Hey Sarah! Hope you're doing well.\n\nJust a quick heads-up — Invoice #1042 for $2,400 was due on Jan 1st. Totally understand things get busy, but wanted to make sure this didn't slip through the cracks.\n\nHere's a quick link if you'd like to sort it now: pay.astrix.ai/1042\n\nThanks so much! 😊`,
-        2: `Hi Sarah,\n\nFollowing up on Invoice #1042 ($2,400) — it's now 14 days past due.\n\nI'd appreciate if you could process this at your earliest convenience. You can pay instantly here: pay.astrix.ai/1042\n\nLet me know if there are any issues.\n\nBest,`,
-        3: `Sarah,\n\nThis is my third follow-up regarding Invoice #1042 for $2,400, now 14 days overdue.\n\nImmediate payment is required. Please use the link below to settle this today: pay.astrix.ai/1042\n\nIf payment is not received within 48 hours, I will need to consider escalation options.\n\nRegards,`,
-      };
-      setGeneratedPreview(previews[toneLevel] || previews[2]);
-      setIsGeneratingPreview(false);
-    }, 1500);
+    try {
+      const response = await fetch('/api/onboarding/tone-preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sampleEmails: toneSample, toneLevel }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Could not generate preview');
+      setGeneratedPreview(result.preview);
+    } catch (error) { addToast(error instanceof Error ? error.message : 'Could not generate preview.', 'error'); }
+    finally { setIsGeneratingPreview(false); }
+  };
+
+  const handleSaveTone = async () => {
+    if (!activeWorkspace?.id || toneSample.trim().length < 20) { addToast('Add at least 20 characters of sample email first.', 'warning'); return; }
+    setIsSaving(true);
+    try {
+      await api.tone.save({ workspace_id: activeWorkspace.id, sample_emails: toneSample.trim(), tone_level: toneLevel, ai_prompt: `Tone level ${toneLevel}; generate payment follow-ups in the user&apos;s voice.`, updated_at: new Date().toISOString() });
+      addToast('Tone settings saved to your workspace.', 'success');
+    } catch (error) { addToast(error instanceof Error ? error.message : 'Could not save tone settings.', 'error'); }
+    finally { setIsSaving(false); }
   };
 
   const handleCopy = () => {
@@ -102,6 +123,14 @@ export const ToneStudio = () => {
                   The AI automatically moves from Level 1 to Level 3 the longer an invoice remains unpaid. Test how your cloned voice sounds at each level.
                 </p>
               </div>
+
+              <button
+                onClick={handleSaveTone}
+                disabled={isSaving || toneSample.trim().length < 20}
+                className="w-full border border-gray-200 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-50 disabled:opacity-50 transition-colors text-sm"
+              >
+                {isSaving ? 'Saving tone...' : 'Save tone to workspace'}
+              </button>
 
               <button 
                 onClick={handleGeneratePreview}

@@ -39,14 +39,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, title, subtitle,
   useEffect(() => {
     setIsMobileMenuOpen(false);
     setIsWorkspaceDropdownOpen(false);
-    
-    // Check for global announcements
-    const savedAnnouncement = localStorage.getItem('global_announcement');
-    if (savedAnnouncement) setGlobalAnnouncement(savedAnnouncement);
-
-    // Check for impersonation
-    const impersonated = localStorage.getItem('impersonated_user_name');
-    if (impersonated) setImpersonationName(impersonated);
+    setGlobalAnnouncement('');
+    setImpersonationName('');
   }, [pathname]);
 
   useEffect(() => {
@@ -70,11 +64,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, title, subtitle,
   };
 
   const handleExitImpersonation = () => {
-    localStorage.removeItem('impersonated_user_id');
-    localStorage.removeItem('impersonated_user_name');
     setImpersonationName('');
-    addToast('Exited Impersonation Mode', 'success');
-    router.push('/godview');
+    addToast('Impersonation is disabled for security.', 'error');
   };
 
   const navSections = [
