@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
+import { useWorkspace } from '../../contexts/WorkspaceContext';
+import { api } from '../../lib/api';
 import { Skeleton } from '../../components/ui/Skeleton';
 
 interface ActivityItem {
@@ -27,25 +29,9 @@ interface DashboardMetrics {
   this_month_recovered: number;
 }
 
-const MOCK_ACTIVITIES: ActivityItem[] = [
-  { id: '1', type: 'reminder_sent', message: 'AI sent a friendly nudge to Acme Corp for Invoice #1042', timestamp: '2 hours ago', amount: 2400 },
-  { id: '2', type: 'payment_received', message: 'Payment received from InnovateLab � Invoice #1039 cleared', timestamp: '5 hours ago', amount: 1500 },
-  { id: '3', type: 'ai_action', message: 'AI escalated TechStart GmbH to Level 2 (Firm tone)', timestamp: '1 day ago' },
-  { id: '4', type: 'invoice_created', message: 'New invoice added for DataFlow Ltd', timestamp: '2 days ago', amount: 890 },
-  { id: '5', type: 'reminder_sent', message: 'AI sent 2nd reminder to CloudScale Inc', timestamp: '3 days ago', amount: 3200 },
-];
-
-const MOCK_METRICS: DashboardMetrics = {
-  total_recovered: 47200,
-  currently_outstanding: 8290,
-  active_chases: 3,
-  recovery_rate: 94,
-  pending_invoices: 4,
-  this_month_recovered: 12400
-};
-
 export const Dashboard = () => {
   const { user } = useAuth();
+  const { activeWorkspace } = useWorkspace();
   const router = useRouter();
   
   const [isLoading, setIsLoading] = useState(true);
@@ -55,13 +41,31 @@ export const Dashboard = () => {
   const firstName = user?.user_metadata?.full_name?.split(' ')[0] || 'there';
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setActivities(MOCK_ACTIVITIES);
-      setMetrics(MOCK_METRICS);
+    let cancelled = false;
+    if (!activeWorkspace?.id) {
+      setActivities([]);
+      setMetrics(null);
       setIsLoading(false);
-    }, 700);
-    return () => clearTimeout(timer);
-  }, []);
+      return () => { cancelled = true; };
+    }
+    setIsLoading(true);
+    Promise.all([api.invoices.list(activeWorkspace.id), api.activity.list(activeWorkspace.id)])
+      .then(([invoices, activity]) => {
+        if (cancelled) return;
+        const paid = invoices.filter((invoice) => invoice.status === 'paid');
+        const pending = invoices.filter((invoice) => invoice.status === 'pending');
+        const recovered = paid.reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0);
+        const outstanding = pending.reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0);
+        const monthStart = new Date();
+        monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+        const thisMonthRecovered = paid.filter((invoice) => new Date(invoice.created_at) >= monthStart).reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0);
+        setActivities(activity.map((item) => ({ ...item, timestamp: new Date(item.timestamp).toLocaleString() })) as ActivityItem[]);
+        setMetrics({ total_recovered: recovered, currently_outstanding: outstanding, active_chases: invoices.filter((invoice) => invoice.ai_status !== 'paid' && invoice.status !== 'paid').length, recovery_rate: invoices.length ? Math.round((paid.length / invoices.length) * 100) : 0, pending_invoices: pending.length, this_month_recovered: thisMonthRecovered });
+      })
+      .catch(() => { if (!cancelled) { setActivities([]); setMetrics({ total_recovered: 0, currently_outstanding: 0, active_chases: 0, recovery_rate: 0, pending_invoices: 0, this_month_recovered: 0 }); } })
+      .finally(() => { if (!cancelled) setIsLoading(false); });
+    return () => { cancelled = true; };
+  }, [activeWorkspace?.id]);
 
   const formatCurrency = (value: number, currency = 'USD') => {
     if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
