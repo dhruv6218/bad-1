@@ -4,12 +4,13 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AuthLayout } from '../layouts/AuthLayout';
-import { Loader2, AlertCircle, Sparkles, Eye, EyeOff } from 'lucide-react';
+import { Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export const Login = () => {
   const router = useRouter();
   const { signIn, signInWithGoogle } = useAuth();
+  const next = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('next');
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +23,6 @@ export const Login = () => {
     setError(null);
     await signInWithGoogle();
     setIsGoogleLoading(false);
-    router.push('/app');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -41,7 +41,7 @@ export const Login = () => {
     if (signInError) {
       setError(signInError);
     } else {
-      router.push('/app');
+      router.replace(next?.startsWith('/') && !next.startsWith('//') ? next : '/app');
     }
   };
 
@@ -135,11 +135,7 @@ export const Login = () => {
           Don&apos;t have an account? <Link href="/signup" className="text-brand-blue font-bold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue rounded-sm">Create account →</Link>
         </p>
 
-        <div className="pt-6 border-t border-gray-100">
-          <Link href="/app" className="w-full flex items-center justify-center gap-2 text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200 font-bold rounded-xl text-sm px-5 py-4 transition-all shadow-sm outline-none focus-visible:ring-4 focus-visible:ring-gray-200">
-            <Sparkles className="w-4 h-4 text-brand-blue" /> Instant Demo Access
-          </Link>
-        </div>
+
       </div>
     </AuthLayout>
   );

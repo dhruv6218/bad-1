@@ -2,13 +2,12 @@
 
 import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { AuthLayout } from '../layouts/AuthLayout';
 import { Loader2, AlertCircle, Sparkles, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 function SignupForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const isDemo = searchParams?.get('demo') === 'true';
   const { signUp, signInWithGoogle } = useAuth();
@@ -29,7 +28,6 @@ function SignupForm() {
     setError(null);
     await signInWithGoogle();
     setIsGoogleLoading(false);
-    router.push('/onboarding/step-1');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -41,7 +39,7 @@ function SignupForm() {
     setIsLoading(true);
     setError(null);
 
-    const { error: signUpError } = await signUp(email, 'magiclink', name, password);
+    const { error: signUpError } = await signUp(email, 'password', name, password);
 
     setIsLoading(false);
 
@@ -63,16 +61,13 @@ function SignupForm() {
             </div>
             <h2 className="font-heading text-2xl font-bold text-gray-900 mb-2">Check your inbox!</h2>
             <p className="text-gray-500 text-sm font-medium mb-6">
-              We sent a magic link to <strong className="text-gray-900">{email}</strong>.<br />
-              Click the link in your email to activate your account and log in.
+              We sent a confirmation link to <strong className="text-gray-900">{email}</strong>.<br />
+              Confirm your email, then return here to sign in.
             </p>
             <div className="space-y-3">
-              <button 
-                onClick={() => router.push('/onboarding/step-1')} 
-                className="w-full bg-brand-blue text-white font-bold py-3.5 px-4 rounded-xl hover:bg-blue-700 transition-colors text-sm shadow-glow-blue btn-shine"
-              >
-                Continue to Onboarding →
-              </button>
+              <Link href="/login" className="w-full block bg-brand-blue text-white font-bold py-3.5 px-4 rounded-xl hover:bg-blue-700 transition-colors text-sm shadow-glow-blue btn-shine">
+                Continue to sign in
+              </Link>
               <button 
                 onClick={() => setSent(false)} 
                 className="text-xs text-gray-500 font-bold hover:underline"
