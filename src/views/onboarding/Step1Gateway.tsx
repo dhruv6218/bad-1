@@ -114,7 +114,7 @@ export const Step1Gateway = () => {
                 className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl p-3.5 outline-none focus:ring-4 focus:ring-brand-blue/20 focus:border-brand-blue font-mono transition-all mb-4" />
               <div className="flex items-center gap-2 mb-4 p-3 bg-yellow-50 border border-yellow-100 rounded-xl">
                 <AlertCircle className="w-4 h-4 text-yellow-600 shrink-0" />
-                <p className="text-xs text-yellow-800 font-medium">Demo mode: Keys are stored locally and never sent to a server.</p>
+                <p className="text-xs text-yellow-800 font-medium">Credentials are encrypted in transit and stored only for this workspace. They are never shown again.</p>
               </div>
               <button type="submit" disabled={isLoading || !apiKey.trim()}
                 className="w-full bg-brand-blue text-white py-3.5 rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50 transition-colors">

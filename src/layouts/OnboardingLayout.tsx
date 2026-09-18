@@ -3,7 +3,8 @@
 import React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 interface OnboardingLayoutProps {
   children: React.ReactNode;
@@ -21,7 +22,14 @@ export const OnboardingLayout: React.FC<OnboardingLayoutProps> = ({
   onSkip
 }) => {
   const router = useRouter();
+  const { user, isInitializing } = useAuth();
   const progress = (step / totalSteps) * 100;
+
+  React.useEffect(() => {
+    if (!isInitializing && !user) router.replace(`/login?next=${encodeURIComponent(`/onboarding/step-${step}`)}`);
+  }, [isInitializing, router, step, user]);
+
+  if (isInitializing || !user) return <main className="min-h-screen grid place-items-center bg-gray-50"><Loader2 className="h-6 w-6 animate-spin text-brand-blue" /><span className="sr-only">Checking your session</span></main>;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col relative overflow-hidden selection:bg-brand-blue selection:text-white">

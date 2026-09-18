@@ -149,7 +149,7 @@ export const Step3Sync = () => {
               <FileSpreadsheet className="w-12 h-12 text-brand-blue mx-auto mb-4 opacity-80" />
               <h3 className="font-bold text-gray-900 mb-1">Upload Invoice CSV</h3>
               <p className="text-xs text-gray-500 mb-1">Required: <code className="bg-gray-100 px-1 rounded">client_name</code>, <code className="bg-gray-100 px-1 rounded">amount</code>, <code className="bg-gray-100 px-1 rounded">due_date</code></p>
-              <p className="text-xs text-gray-400 mb-6">Optional: client_email, currency</p>
+              <p className="text-xs text-gray-400 mb-6">Required for recovery emails: client_email. Optional: currency</p>
               <input type="file" accept=".csv" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
               <button onClick={() => fileInputRef.current?.click()} disabled={isUploading}
                 className="bg-brand-blue text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2 mx-auto transition-colors">

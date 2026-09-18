@@ -26,10 +26,12 @@ export const processInvoicesCsv = async (file: File, workspaceId: string): Promi
             const amount = parseFloat(row.amount || '0');
             const dueDate = String(row.due_date || '').trim();
             if (clientName && amount > 0 && dueDate) {
+              const clientEmail = String(row.client_email || '').trim();
+              if (!clientEmail || !clientEmail.includes('@')) continue;
               await api.invoices.create({
                 workspace_id: workspaceId,
                 client_name: clientName,
-                client_email: String(row.client_email || '').trim() || `${clientName.toLowerCase().replace(/\s+/g, '.')}@client.com`,
+                client_email: clientEmail,
                 amount,
                 currency: String(row.currency || 'USD').trim().toUpperCase(),
                 due_date: dueDate,

@@ -30,28 +30,35 @@ export const Step2Tone = () => {
   const [preview, setPreview] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleGeneratePreview = () => {
-    if (!sampleEmails.trim()) { addToast('Paste at least one sample email first.', 'warning'); return; }
+  const handleGeneratePreview = async () => {
+    if (sampleEmails.trim().length < 20) { addToast('Paste at least 20 characters of sample email first.', 'warning'); return; }
     setIsGenerating(true);
-    setTimeout(() => {
-      setPreview(TONE_PREVIEWS[toneLevel]);
-      setIsGenerating(false);
-    }, 1200);
+    try {
+      const response = await fetch('/api/onboarding/tone-preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sampleEmails, toneLevel }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? 'Could not generate preview');
+      setPreview(result.preview);
+    } catch (error) {
+      addToast(error instanceof Error ? error.message : 'Could not generate preview.', 'error');
+    } finally { setIsGenerating(false); }
   };
 
   const handleContinue = async () => {
     if (!activeWorkspace) return;
     setIsSaving(true);
-    await api.tone.save({
-      workspace_id: activeWorkspace.id,
-      sample_emails: sampleEmails,
-      tone_level: toneLevel,
-      ai_prompt: `Tone level ${toneLevel}: ${TONE_OPTIONS[toneLevel - 1].label}. Sample: ${sampleEmails.substring(0, 200)}`,
-      updated_at: new Date().toISOString(),
-    });
-    addToast('Tone saved successfully!', 'success');
-    setIsSaving(false);
-    router.push('/onboarding/step-3');
+    try {
+      await api.tone.save({
+        workspace_id: activeWorkspace.id,
+        sample_emails: sampleEmails.trim(),
+        tone_level: toneLevel,
+        ai_prompt: `Tone level ${toneLevel}: ${TONE_OPTIONS[toneLevel - 1].label}. Sample: ${sampleEmails.trim().substring(0, 200)}`,
+        updated_at: new Date().toISOString(),
+      });
+      addToast('Tone saved successfully!', 'success');
+      router.push('/onboarding/step-3');
+    } catch (error) {
+      addToast(error instanceof Error ? error.message : 'Could not save tone settings.', 'error');
+    } finally { setIsSaving(false); }
   };
 
   const handleSkip = () => router.push('/onboarding/step-3');
