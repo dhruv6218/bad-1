@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server'
+import { clientKey, pruneRateLimitBuckets, rateLimit, requestId } from '@/lib/server/security'
 
 const limit = (value: string, max: number) => value.trim().slice(0, max)
 
 export async function POST(request: Request) {
+  const id = requestId()
+  pruneRateLimitBuckets()
+  const requestLimit = rateLimit(clientKey(request, 'contact'), 5, 10 * 60_000)
+  if (!requestLimit.allowed) return NextResponse.json({ error: 'Too many requests. Try again later.', requestId: id }, { status: 429, headers: { 'Retry-After': String(requestLimit.retryAfter) } })
   const body = await request.json().catch(() => null)
   const firstName = limit(typeof body?.firstName === 'string' ? body.firstName : '', 80)
   const lastName = limit(typeof body?.lastName === 'string' ? body.lastName : '', 80)
