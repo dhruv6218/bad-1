@@ -1,12 +1,32 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AppLayout } from '../../layouts/AppLayout';
+import { useWorkspace } from '../../contexts/WorkspaceContext';
+import { useToast } from '../../contexts/ToastContext';
+import { api } from '../../lib/api';
 import { CreditCard, CheckCircle2, Plus, ExternalLink, ShieldCheck, Zap, Link as LinkIcon } from 'lucide-react';
 
 export const Gateways = () => {
-  const [isStripeConnected, setIsStripeConnected] = useState(true);
-  const [isRazorpayConnected, setIsRazorpayConnected] = useState(false);
-  const [isDodoConnected, setIsDodoConnected] = useState(false);
+  const { activeWorkspace } = useWorkspace();
+  const { addToast } = useToast();
+  const [connections, setConnections] = useState<Record<string, boolean>>({});
   const [staticLink, setStaticLink] = useState('');
+  useEffect(() => {
+    if (!activeWorkspace?.id) return;
+    api.gateways.list(activeWorkspace.id).then((rows: any[]) => {
+      setConnections(Object.fromEntries(rows.map((row: any) => [row.type, Boolean(row.is_active)])));
+      setStaticLink(rows.find((row: any) => row.type === 'static')?.static_url || '');
+    }).catch(() => addToast('Could not load gateway settings.', 'error'));
+  }, [activeWorkspace?.id, addToast]);
+  const toggleGateway = async (provider: string) => {
+    if (!activeWorkspace?.id) return;
+    try { await api.gateways.create({ workspace_id: activeWorkspace.id, type: (provider === 'dodo' ? 'custom' : provider) as any, label: provider, is_active: !connections[provider], static_url: provider === 'static' ? staticLink : undefined, api_key: undefined }); setConnections((current) => ({ ...current, [provider]: !current[provider] })); addToast(`${provider} settings updated.`, 'success'); }
+    catch { addToast(`Could not update ${provider}.`, 'error'); }
+  };
+  const saveStaticLink = async () => {
+    if (!activeWorkspace?.id || !staticLink.trim()) return;
+    try { await api.gateways.create({ workspace_id: activeWorkspace.id, type: 'custom', label: 'Static payment link', is_active: true, static_url: staticLink.trim(), api_key: undefined }); addToast('Payment link saved.', 'success'); }
+    catch { addToast('Could not save payment link.', 'error'); }
+  };
 
   return (
     <AppLayout 
@@ -57,7 +77,7 @@ export const Gateways = () => {
             <p className="text-sm text-gray-500 mb-6 flex-1">Global payments, Credit cards, Apple Pay, Google Pay.</p>
 
             <div className="space-y-4 mt-auto">
-              {isStripeConnected ? (
+              {connections.stripe ? (
                 <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Status</span>
@@ -67,14 +87,14 @@ export const Gateways = () => {
               ) : null}
               
               <button 
-                onClick={() => setIsStripeConnected(!isStripeConnected)}
+                onClick={() => toggleGateway('stripe')}
                 className={`w-full py-3 rounded-xl font-bold text-sm transition-colors ${
-                  isStripeConnected 
+                  connections.stripe 
                     ? 'bg-white border-2 border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50' 
                     : 'bg-[#635BFF] text-white hover:bg-[#5249e5]'
                 }`}
               >
-                {isStripeConnected ? 'Manage Stripe' : 'Connect Stripe'}
+                {connections.stripe ? 'Manage Stripe' : 'Connect Stripe'}
               </button>
             </div>
           </div>
@@ -96,14 +116,14 @@ export const Gateways = () => {
 
             <div className="space-y-4 mt-auto">
               <button 
-                onClick={() => setIsRazorpayConnected(!isRazorpayConnected)}
+                onClick={() => toggleGateway('razorpay')}
                 className={`w-full py-3 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2 ${
-                  isRazorpayConnected 
+                  connections.razorpay 
                     ? 'bg-white border-2 border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50' 
                     : 'bg-[#02042B] text-white hover:bg-black'
                 }`}
               >
-                {isRazorpayConnected ? 'Manage Razorpay' : <><Plus className="w-4 h-4" /> Connect Razorpay</>}
+                {connections.razorpay ? 'Manage Razorpay' : <><Plus className="w-4 h-4" /> Connect Razorpay</>}
               </button>
             </div>
           </div>
@@ -125,14 +145,14 @@ export const Gateways = () => {
 
             <div className="space-y-4 mt-auto">
               <button 
-                onClick={() => setIsDodoConnected(!isDodoConnected)}
+                onClick={() => toggleGateway('dodo')}
                 className={`w-full py-3 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2 ${
-                  isDodoConnected 
+                  connections.dodo 
                     ? 'bg-white border-2 border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50' 
                     : 'bg-[#18181B] text-[#D4FF46] hover:bg-black'
                 }`}
               >
-                {isDodoConnected ? 'Manage Dodo' : <><Plus className="w-4 h-4" /> Connect Dodo</>}
+                {connections.dodo ? 'Manage Dodo' : <><Plus className="w-4 h-4" /> Connect Dodo</>}
               </button>
             </div>
           </div>
@@ -155,7 +175,7 @@ export const Gateways = () => {
                   value={staticLink}
                   onChange={(e) => setStaticLink(e.target.value)}
                 />
-                <button className="px-6 py-2 bg-gray-900 text-white rounded-xl font-bold text-sm hover:bg-black transition-colors whitespace-nowrap">
+                <button onClick={saveStaticLink} className="px-6 py-2 bg-gray-900 text-white rounded-xl font-bold text-sm hover:bg-black transition-colors whitespace-nowrap">
                   Save Link
                 </button>
               </div>
