@@ -5,7 +5,6 @@ import { AppLayout } from '../../layouts/AppLayout';
 import { Send, Sparkles, User, Loader2, Bot } from 'lucide-react';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { api } from '../../lib/api';
-import type { Opportunity, Account, Decision, Invoice } from '../../types';
 
 interface Message {
   id: string;
@@ -48,83 +47,27 @@ export const Assistant = () => {
   }, [messages, isTyping]);
 
   const handleSend = async (text: string) => {
-    if (!text.trim()) return;
-
-    const userMsg: Message = { id: Date.now().toString(), role: 'user', content: text };
-    setMessages(prev => [...prev, userMsg]);
+    if (!text.trim() || isTyping) return;
+    const userMsg: Message = { id: crypto.randomUUID(), role: 'user', content: text.trim() };
+    setMessages((prev) => [...prev, userMsg]);
     setInput('');
     setIsTyping(true);
-
-    let responseContent: React.ReactNode =
-      "I couldn't find specific data for that query in your workspace.";
-
-    if (!activeWorkspace?.id) {
-      responseContent = 'Select a workspace first, then ask your query.';
-    } else {
-      await new Promise(r => setTimeout(r, 1000));
-      const lower = text.toLowerCase();
-      let innerContent: React.ReactNode = 'No matching results found in workspace data.';
-
-      if (lower.includes('opportunit')) {
-        const opps: Opportunity[] = await api.opportunities.list(activeWorkspace.id);
-        if (opps.length > 0) {
-          innerContent = (
-            <div className="space-y-2">
-              <p className="font-bold text-gray-900 mb-2">Top {Math.min(3, opps.length)} Opportunities:</p>
-              {opps.slice(0, 3).map((opp: Opportunity, idx: number) => (
-                <div key={idx} className="p-3 bg-white border border-gray-200 rounded-xl">
-                  <div className="text-xs text-gray-700">
-                    <span className="font-bold text-gray-900">{opp.problems?.title}:</span> Score {opp.opportunity_score}, Recommended: {opp.recommended_action}
-                  </div>
-                </div>
-              ))}
-            </div>
-          );
-        }
-      } else if (lower.includes('account')) {
-        const accounts: Account[] = await api.accounts.list(activeWorkspace.id);
-        if (accounts.length > 0) {
-          innerContent = (
-            <div className="space-y-2">
-              <p className="font-bold text-gray-900 mb-2">Accounts ({accounts.length}):</p>
-              {accounts.slice(0, 5).map((acc: Account, idx: number) => (
-                <div key={idx} className="p-3 bg-white border border-gray-200 rounded-xl">
-                  <div className="text-xs text-gray-700">
-                    <span className="font-bold text-gray-900">{acc.name}:</span> ARR ${acc.arr.toLocaleString()}, Plan: {acc.plan || 'Standard'}
-                  </div>
-                </div>
-              ))}
-            </div>
-          );
-        }
-      } else if (lower.includes('decision')) {
-        const decisions: Decision[] = await api.decisions.list(activeWorkspace.id);
-        if (decisions.length > 0) {
-          innerContent = (
-            <div className="space-y-2">
-              <p className="font-bold text-gray-900 mb-2">Recent Decisions:</p>
-              {decisions.slice(0, 3).map((dec: Decision, idx: number) => (
-                <div key={idx} className="p-3 bg-white border border-gray-200 rounded-xl">
-                  <div className="text-xs text-gray-700">
-                    <span className="font-bold text-gray-900">{dec.title}:</span> Action: {dec.action}
-                  </div>
-                </div>
-              ))}
-            </div>
-          );
-        }
-      } else {
-        const invoices: Invoice[] = await api.invoices.list(activeWorkspace.id);
-        const pending = invoices.filter((i: Invoice) => i.status === 'pending');
-        innerContent = `You have ${pending.length} pending invoices totaling $${pending.reduce((s: number, i: Invoice) => s + i.amount, 0).toLocaleString()}.`;
-      }
-
-      responseContent = innerContent;
-    }
-
-    const assistantMsg: Message = { id: Date.now().toString(), role: 'assistant', content: responseContent };
-    setMessages(prev => [...prev, assistantMsg]);
-    setIsTyping(false);
+    try {
+      if (!activeWorkspace?.id) throw new Error('Select a workspace first, then ask your query.');
+      const [opps, accounts, decisions, invoices] = await Promise.all([
+        api.opportunities.list(activeWorkspace.id),
+        api.accounts.list(activeWorkspace.id),
+        api.decisions.list(activeWorkspace.id),
+        api.invoices.list(activeWorkspace.id),
+      ]);
+      const context = JSON.stringify({ opportunities: opps.slice(0, 20), accounts: accounts.slice(0, 20), decisions: decisions.slice(0, 20), invoices: invoices.slice(0, 50) });
+      const response = await fetch('/api/assistant', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: text.trim(), workspaceId: activeWorkspace.id, context }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Assistant unavailable.');
+      setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'assistant', content: result.answer }]);
+    } catch (error) {
+      setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'assistant', content: error instanceof Error ? error.message : 'Assistant unavailable.' }]);
+    } finally { setIsTyping(false); }
   };
 
   return (
