@@ -1,7 +1,12 @@
 const buckets = new Map<string, { count: number; resetAt: number }>()
 
 export function requestId() {
-  return crypto.randomUUID()
+  return crypto.randomUUID();
+}
+
+export function withRequestId(response: Response, id: string) {
+  response.headers.set('X-Request-ID', id);
+  return response;
 }
 
 export function rateLimit(key: string, limit = 30, windowMs = 60_000) {

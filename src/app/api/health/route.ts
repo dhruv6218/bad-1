@@ -17,12 +17,12 @@ export async function GET(request: Request) {
 
     if (error) {
       console.error('[health]', { id, error: error.message })
-      return NextResponse.json({ status: 'degraded', id }, { status: 503 })
+      return NextResponse.json({ status: 'degraded', database: 'error', id, latencyMs: Date.now() - startedAt, timestamp: new Date().toISOString() }, { status: 503 })
     }
 
-    return NextResponse.json({ status: 'ok', id, latencyMs: Date.now() - startedAt })
+    return NextResponse.json({ status: 'ok', database: 'ok', id, latencyMs: Date.now() - startedAt, timestamp: new Date().toISOString() })
   } catch (error) {
     console.error('[health]', { id, error })
-    return NextResponse.json({ status: 'degraded', id }, { status: 503 })
+    return NextResponse.json({ status: 'degraded', database: 'error', id, latencyMs: Date.now() - startedAt, timestamp: new Date().toISOString() }, { status: 503 })
   }
 }
