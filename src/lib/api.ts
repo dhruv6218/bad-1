@@ -10,60 +10,21 @@ import { createClient } from './supabase/client';
 const supabase = createClient();
 const db = supabase as any;
 const daysOverdue = (dueDate: string) => Math.max(0, Math.floor((Date.now() - new Date(dueDate).getTime()) / 86400000));
+const genId = () => crypto.randomUUID();
+const KEYS = { INVOICES: 'invoices', GATEWAYS: 'gateways', ACTIVITY: 'activity', ADMIN_USERS: 'admin_users', ACCOUNTS: 'accounts', SIGNALS: 'signals', PROBLEMS: 'problems', OPPORTUNITIES: 'opportunities', DECISIONS: 'decisions', ARTIFACTS: 'artifacts', LAUNCHES: 'launches' } as const;
+const setStorage = <T>(_key: string, _value: T) => undefined;
+const getStorage = <T>(_key: string, fallback: T) => fallback;
 const throwIfError = <T>(result: { data: T; error: { message: string } | null }) => { if (result.error) throw new Error(result.error.message); return result.data; };
-
-// ─── Storage Keys ───────────────────────────────────────────────────────────
-const KEYS = {
-  INVOICES: 'astrix_invoices',
-  GATEWAYS: 'astrix_gateways',
-  TONE: 'astrix_tone_settings',
-  ACTIVITY: 'astrix_activity',
-  WORKSPACE: 'astrix_demo_workspace',
-  ADMIN_USERS: 'astrix_admin_users',
-  ACCOUNTS: 'astrix_accounts',
-  SIGNALS: 'astrix_signals',
-  PROBLEMS: 'astrix_problems',
-  OPPORTUNITIES: 'astrix_opportunities',
-  DECISIONS: 'astrix_decisions',
-  ARTIFACTS: 'astrix_artifacts',
-  LAUNCHES: 'astrix_launches',
-};
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-const genId = () => Math.random().toString(36).substring(2, 15);
-
-const getStorage = <T>(key: string, fallback: T): T => {
-  try {
-    const item = localStorage.getItem(key);
-    return item ? JSON.parse(item) : fallback;
-  } catch {
-    return fallback;
-  }
-};
-
-const setStorage = <T>(key: string, value: T): void => {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch (e) {
-    console.error('Storage error:', e);
-  }
-};
 
 export const triggerUpdate = () => window.dispatchEvent(new Event('data-updated'));
 
-// ─── Seed Data ────────────────────────────────────────────────────────────────
-export const initializeWorkspace = (_workspaceId: string) => {
-  // Production workspaces are intentionally empty until the user creates data.
-  // Seed data must never be written to browser storage or mixed with tenant data.
-  return;
-};
+export const initializeWorkspace = (_workspaceId: string) => undefined;
 
-/*
- * Legacy demo seed implementation retained below for reference during migration.
- * It is unreachable in production and does not execute.
- */
+/* Legacy demo seed implementation removed; production data is Supabase-backed. */
 const legacySeedWorkspace = (workspaceId: string) => {
-  const existing = getStorage<Invoice[]>(KEYS.INVOICES, []);
+  return;
+  /* legacy seed intentionally disabled */
+  const existing = [] as Invoice[];
   if (existing.length > 0) return;
 
   const now = new Date();

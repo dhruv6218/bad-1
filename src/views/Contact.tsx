@@ -18,21 +18,15 @@ export const Contact = () => {
     const formData = new FormData(form);
 
     try {
-      const response = await fetch("https://formspree.io/f/maqppylo", {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-        },
-        body: formData,
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.fromEntries(formData.entries())),
       });
-
-      if (response.ok) {
-        setIsSuccess(true);
-        form.reset(); // Clear the form fields
-        setTimeout(() => setIsSuccess(false), 5000);
-      } else {
-        alert("Oops! There was a problem submitting your form.");
-      }
+      const result = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(result?.error || 'Unable to send your message.');
+      setIsSuccess(true);
+      form.reset();
     } catch (error) {
       console.error("Error submitting form", error);
       alert("Oops! There was a problem submitting your form.");
