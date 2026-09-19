@@ -7,6 +7,16 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { useWorkspace } from '../contexts/WorkspaceContext';
+import { createClient } from '../lib/supabase/client';
+
+const supabase = createClient();
+
+async function hashToken(token: string) {
+  const bytes = new TextEncoder().encode(token);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
 function AcceptInvitationInner() {
   const searchParams = useSearchParams();
   const token = searchParams?.get('token');
@@ -27,14 +37,22 @@ function AcceptInvitationInner() {
       return;
     }
 
-    // Mock fetch invite
-    setInviteDetails({
-      id: 'invite-123',
-      email: 'member@company.com',
-      role: 'Member',
-      workspaceName: 'Acme Corp Workspace',
-    });
-    setIsLoading(false);
+    let cancelled = false;
+    hashToken(token)
+      .then((tokenHash) => (supabase.rpc as any)('lookup_workspace_invitation', { p_token_hash: tokenHash }))
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error || !data?.[0]) {
+          setError('This invitation is invalid, expired, or has already been accepted.');
+        } else {
+          setInviteDetails(data[0]);
+        }
+        setIsLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) { setError('We could not validate this invitation.'); setIsLoading(false); }
+      });
+    return () => { cancelled = true; };
   }, [token]);
 
   const handleAccept = async (e: React.FormEvent) => {
@@ -46,10 +64,7 @@ function AcceptInvitationInner() {
     try {
       await sendMagicLink(inviteDetails.email);
       await refreshWorkspaces();
-      setSuccessMsg(`Invitation accepted! Magic link activated for ${inviteDetails.email}. Directing to workspace...`);
-      setTimeout(() => {
-        router.push('/app');
-      }, 1500);
+      setSuccessMsg(`A secure sign-in link was sent to ${inviteDetails.email}. Open it to finish joining the workspace.`);
     } catch (err: any) {
       setError(err.message || 'Failed to accept invitation.');
     } finally {
