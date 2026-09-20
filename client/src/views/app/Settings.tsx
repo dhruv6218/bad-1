@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AppLayout } from '../../layouts/AppLayout';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -25,6 +25,20 @@ export const Settings = () => {
   const [profileName, setProfileName] = useState(user?.user_metadata?.full_name || '');
   const [workspaceName, setWorkspaceName] = useState(activeWorkspace?.name || '');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [notificationPreferences, setNotificationPreferences] = useState({
+    payment_received: true,
+    reminder_sent: true,
+    dispute_alert: true,
+    weekly_summary: false,
+  });
+  const [isSavingNotifications, setIsSavingNotifications] = useState(false);
+
+  useEffect(() => {
+    const stored = user?.user_metadata?.notification_preferences;
+    if (stored && typeof stored === 'object') {
+      setNotificationPreferences((current) => ({ ...current, ...stored }));
+    }
+  }, [user?.id, user?.user_metadata?.notification_preferences]);
 
   const fullName = user?.user_metadata?.full_name || 'User';
   const email = user?.email || 'user@example.com';
@@ -41,6 +55,15 @@ export const Settings = () => {
 
   const handleManageSubscription = () => {
     router.push('/pricing');
+  };
+
+  const saveNotificationPreferences = async (next: typeof notificationPreferences) => {
+    if (!user) return;
+    setNotificationPreferences(next);
+    setIsSavingNotifications(true);
+    const { error } = await supabase.auth.updateUser({ data: { notification_preferences: next } });
+    if (error) addToast(error.message, 'warning');
+    setIsSavingNotifications(false);
   };
 
   const handleSaveProfile = async () => {
@@ -180,22 +203,22 @@ export const Settings = () => {
               </div>
               <div className="p-6 space-y-4">
                 {[
-                  { label: 'Payment received alert', desc: 'Get notified instantly when a client pays via 1-Click Checkout.', checked: true },
-                  { label: 'AI Reminder sent confirmation', desc: 'Daily digest of emails the AI sent on your behalf.', checked: true },
-                  { label: 'Invoice dispute alert', desc: 'If a client replies to a reminder with a dispute or question.', checked: true },
-                  { label: 'Weekly recovery summary', desc: 'A Monday morning report of your metrics.', checked: false },
+                  { key: 'payment_received', label: 'Payment received alert', desc: 'Get notified instantly when a client pays via 1-Click Checkout.' },
+                  { key: 'reminder_sent', label: 'AI Reminder sent confirmation', desc: 'Daily digest of emails the AI sent on your behalf.' },
+                  { key: 'dispute_alert', label: 'Invoice dispute alert', desc: 'If a client replies to a reminder with a dispute or question.' },
+                  { key: 'weekly_summary', label: 'Weekly recovery summary', desc: 'A Monday morning report of your metrics.' },
                 ].map((item, i) => (
-                  <div key={i} className="flex items-start justify-between p-4 bg-gray-50 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors cursor-pointer group">
+                  <button type="button" key={i} disabled={isSavingNotifications} onClick={() => void saveNotificationPreferences({ ...notificationPreferences, [item.key]: !notificationPreferences[item.key as keyof typeof notificationPreferences] })} className="w-full text-left flex items-start justify-between p-4 bg-gray-50 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors cursor-pointer group disabled:opacity-60">
                     <div className="pr-4">
                       <h4 className="text-sm font-bold text-gray-900 group-hover:text-brand-blue transition-colors">{item.label}</h4>
                       <p className="text-xs text-gray-500 mt-1">{item.desc}</p>
                     </div>
                     <div className="pt-1">
-                      <div className={`w-10 h-6 rounded-full transition-colors flex items-center px-1 ${item.checked ? 'bg-green-500' : 'bg-gray-300'}`}>
-                        <div className={`w-4 h-4 rounded-full bg-white transition-transform ${item.checked ? 'translate-x-4' : 'translate-x-0'}`}></div>
+                      <div className={`w-10 h-6 rounded-full transition-colors flex items-center px-1 ${notificationPreferences[item.key as keyof typeof notificationPreferences] ? 'bg-green-500' : 'bg-gray-300'}`}>
+                        <div className={`w-4 h-4 rounded-full bg-white transition-transform ${notificationPreferences[item.key as keyof typeof notificationPreferences] ? 'translate-x-4' : 'translate-x-0'}`}></div>
                       </div>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>

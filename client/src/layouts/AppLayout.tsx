@@ -81,6 +81,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, title, subtitle,
   const initials = fullName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
   const wsName = activeWorkspace?.name || 'Workspace';
   const wsInitials = wsName.substring(0, 2).toUpperCase();
+  const planLabel = activeWorkspace?.plan || 'Hook';
+  const isAgency = planLabel === 'Agency';
 
   return (
     <div className="min-h-screen bg-gray-50 flex font-sans selection:bg-brand-blue selection:text-white overflow-hidden" suppressHydrationWarning>
@@ -121,7 +123,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, title, subtitle,
                 <span className="text-sm font-bold text-white leading-tight truncate w-full text-left">
                   {isWorkspaceInitializing ? 'Loading...' : wsName}
                 </span>
-                <span className="text-[10px] font-mono text-slate-400 uppercase tracking-widest">Solo Plan</span>
+                <span className="text-[10px] font-mono text-slate-400 uppercase tracking-widest">{planLabel} Plan</span>
               </div>
             </div>
           </div>
@@ -171,9 +173,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, title, subtitle,
           >
             <div className="flex items-center gap-2 mb-1">
               <Sparkles className="w-4 h-4 text-brand-yellow" />
-              <span className="text-xs font-black text-white uppercase tracking-widest">Upgrade to Solo</span>
+              <span className="text-xs font-black text-white uppercase tracking-widest">{isAgency ? 'Agency plan active' : `Upgrade to ${planLabel === 'Hook' ? 'Solo' : 'Agency'}`}</span>
             </div>
-            <p className="text-[11px] text-slate-400 group-hover:text-slate-300">Unlimited recoveries from $29/mo</p>
+            <p className="text-[11px] text-slate-400 group-hover:text-slate-300">{isAgency ? 'Team controls and white-label settings enabled' : 'Unlock more recoveries and team controls'}</p>
           </button>
         </div>
 

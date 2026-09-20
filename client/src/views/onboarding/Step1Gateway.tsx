@@ -17,9 +17,10 @@ interface GatewayOption {
 }
 
 const GATEWAYS: GatewayOption[] = [
-  { type: 'stripe', label: 'Stripe', icon: CreditCard, placeholder: 'sk_live_... or sk_test_...', hint: 'API key from Stripe Dashboard ? Developers ? API Keys' },
-  { type: 'razorpay', label: 'Razorpay', icon: Zap, placeholder: 'rzp_live_... or rzp_test_...', hint: 'API key from Razorpay Dashboard ? Settings ? API Keys' },
-  { type: 'upi', label: 'UPI / Static Link', icon: LinkIcon, placeholder: 'https://pay.example.com/you or upi://pay?pa=...', hint: 'Paste any payment link, UPI deeplink, or hosted checkout URL' },
+  { type: 'stripe', label: 'Stripe', icon: CreditCard, placeholder: 'https://buy.stripe.com/...', hint: 'Use a Stripe Payment Link or hosted checkout URL. Never paste secret API keys here.' },
+  { type: 'razorpay', label: 'Razorpay', icon: Zap, placeholder: 'https://rzp.io/l/...', hint: 'Use a Razorpay Payment Link. Server credentials are never collected in the browser.' },
+  { type: 'dodo', label: 'Dodo', icon: Zap, placeholder: 'https://checkout.dodopayments.com/...', hint: 'Use a Dodo hosted checkout/payment link for your personal Dodo account.' },
+  { type: 'upi', label: 'UPI / Static Link', icon: LinkIcon, placeholder: 'https://pay.example.com/you or upi://pay?pa=...', hint: 'Paste a payment link, UPI deeplink, or hosted checkout URL.' },
 ];
 
 export const Step1Gateway = () => {
@@ -42,8 +43,8 @@ export const Step1Gateway = () => {
         workspace_id: activeWorkspace.id,
         type: selectedGateway,
         label: selected?.label || selectedGateway,
-        api_key: selectedGateway !== 'upi' ? apiKey.trim() : undefined,
-        static_url: selectedGateway === 'upi' ? apiKey.trim() : undefined,
+        api_key: null,
+        static_url: apiKey.trim(),
         is_active: true,
       });
       if (gatewayError) throw gatewayError;
@@ -92,7 +93,7 @@ export const Step1Gateway = () => {
       ) : (
         <div className="space-y-6">
           {/* Gateway Selection */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             {GATEWAYS.map(gw => (
               <button key={gw.type} onClick={() => { setSelectedGateway(gw.type); setApiKey(''); setError(null); }}
                 className={`p-4 rounded-2xl border-2 transition-all text-center relative ${selectedGateway === gw.type ? 'border-brand-blue bg-blue-50/30' : 'border-gray-200 bg-white hover:border-gray-300'}`}>
@@ -106,20 +107,18 @@ export const Step1Gateway = () => {
           {/* API Key Input */}
           {selectedGateway && selected && (
             <form onSubmit={handleConnect} className="bg-white border border-gray-200 rounded-3xl p-6 shadow-apple animate-[fadeIn_0.25s_ease-out]">
-              <label className="block text-sm font-bold text-gray-900 mb-1">
-                {selectedGateway === 'upi' ? 'Payment Link / UPI URL' : `${selected.label} API Key`}
-              </label>
+              <label className="block text-sm font-bold text-gray-900 mb-1">Hosted Payment Link / UPI URL</label>
               <p className="text-xs text-gray-500 mb-3">{selected.hint}</p>
-              <input type={selectedGateway === 'upi' ? 'url' : 'text'} required value={apiKey} onChange={e => setApiKey(e.target.value)}
+              <input type="url" required value={apiKey} onChange={e => setApiKey(e.target.value)}
                 placeholder={selected.placeholder}
                 className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl p-3.5 outline-none focus:ring-4 focus:ring-brand-blue/20 focus:border-brand-blue font-mono transition-all mb-4" />
               <div className="flex items-center gap-2 mb-4 p-3 bg-yellow-50 border border-yellow-100 rounded-xl">
                 <AlertCircle className="w-4 h-4 text-yellow-600 shrink-0" />
-                <p className="text-xs text-yellow-800 font-medium">Connection settings are stored against this workspace and protected by Supabase RLS. Use test keys until the production secret vault is enabled.</p>
+                <p className="text-xs text-yellow-800 font-medium">Only the hosted payment URL is stored. Secret provider API keys are intentionally never accepted in the browser.</p>
               </div>
               <button type="submit" disabled={isLoading || !apiKey.trim()}
                 className="w-full bg-brand-blue text-white py-3.5 rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50 transition-colors">
-                {isLoading ? 'Connecting...' : `Connect ${selected.label}`}
+                {isLoading ? 'Connecting...' : `Save ${selected.label} Link`}
               </button>
             </form>
           )}
