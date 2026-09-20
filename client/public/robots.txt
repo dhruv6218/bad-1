@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /app
+Disallow: /onboarding
+Disallow: /godview
+Disallow: /reset-password
+
+Sitemap: /sitemap.xml

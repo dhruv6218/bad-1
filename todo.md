@@ -32,3 +32,13 @@
 - Paid billing, email sends, AI generation, and scheduled recovery are intentionally fail-closed until provider secrets are configured.
 - Supabase Auth leaked-password protection still needs to be enabled from the Supabase Auth dashboard.
 - The managed preview is a separate full-stack workspace from the original connected Next.js repository; publish the managed checkpoint or synchronize the desired GitHub branch before going live.
+
+## Final audit outcome
+
+- [x] Public Vercel production deployment is READY and serves the Astrix AI shell over HTTPS.
+- [x] GitHub `main` is clean at the deployed commit, with `pre-astrixai-managed-20260919` retained as rollback history.
+- [x] Published source passes 8 Vitest tests, TypeScript validation, and the Vercel static build.
+- [x] Public route smoke tests return HTTP 200 for marketing, legal, auth, app, and admin paths; browser auth still gates protected screens.
+- [x] Added `robots.txt`, `manifest.json`, `sitemap.xml`, favicon, and branded metadata.
+- [x] Supabase advisor/function inventory was attempted but remains unverified in this session because the connector returned a permission error; no security claim is based on that failed check.
+- [x] Final launch gates are documented: Edge Function secrets/scheduler, Supabase Auth leaked-password protection, backup/recovery drill, provider sandbox QA, custom domain, and error-ingestion endpoint.
