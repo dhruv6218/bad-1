@@ -42,3 +42,13 @@
 - [x] Added `robots.txt`, `manifest.json`, `sitemap.xml`, favicon, and branded metadata.
 - [x] Supabase advisor/function inventory was attempted but remains unverified in this session because the connector returned a permission error; no security claim is based on that failed check.
 - [x] Final launch gates are documented: Edge Function secrets/scheduler, Supabase Auth leaked-password protection, backup/recovery drill, provider sandbox QA, custom domain, and error-ingestion endpoint.
+
+## Final founder-requested hardening
+
+- [x] Added Dodo as a supported gateway type.
+- [x] Replaced browser API-key collection with hosted payment-link storage; Stripe, Razorpay, Dodo, and UPI links can be saved without exposing provider secrets to users or the client.
+- [x] Persisted notification toggles through Supabase Auth user metadata.
+- [x] Made workspace plan labels and upgrade messaging reflect the actual workspace plan.
+- [x] Confirmed Godview remains an authenticated, aggregate-only admin surface.
+- [ ] Move `astrixai.app` and `www.astrixai.app` from the existing Vercel `landing-page` project to `bad-1`; Vercel API reports the domain is already attached and the browser session is not authenticated, so this requires a Vercel dashboard/domain reassignment action.
+- [ ] Configure and sandbox-test provider secrets, Edge Function scheduler, backups, leaked-password protection, error ingestion, and custom-domain DNS before claiming full operational go-live.
